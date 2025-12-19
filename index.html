@@ -159,7 +159,7 @@
             AlertTriangle: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
         };
 
-        // --- MODAL COMPONENT (Geliştirilmiş - Backdrop Click & Keyboard) ---
+        // --- MODAL COMPONENT ---
         const Modal = ({ isOpen, onClose, title, children, type = 'info' }) => {
             if (!isOpen) return null;
             return (
@@ -190,7 +190,7 @@
             const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
             const [firebaseUser, setFirebaseUser] = useState(null);
             
-            // Veri yazma kilidi (Snapshot döngüsünü engellemek için)
+            // Veri yazma kilidi
             const isWriting = useRef(false);
 
             // KURA SİSTEMİ STATE'LERİ
@@ -263,6 +263,12 @@
                 }
             }, []);
 
+            // --- USER ROLE CHANGE EFFECT ---
+            useEffect(() => {
+                if (userRole === 'doctor') setSelectedShiftType('X');
+                else if (userRole === 'admin') setSelectedShiftType('24');
+            }, [userRole]);
+
             // --- YARDIMCI: DÖNEM ID OLUŞTURUCU ---
             const getPeriodDocId = (date) => {
                 return `nobet_data_${date.getFullYear()}_${date.getMonth()}`;
@@ -272,12 +278,10 @@
             useEffect(() => {
                 if (!firebaseUser || !window.isFirebaseAvailable) return;
 
-                // Dinamik Doc ID: Yıl ve Ay'a göre değişir
                 const docId = getPeriodDocId(currentDate);
                 const docRef = window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'nobet_system', docId);
                 
                 const unsubscribe = window.onSnapshot(docRef, (snapshot) => {
-                    // Eğer şu an biz yazıyorsak, gelen güncellemeyi yoksay (döngüyü kır)
                     if (isWriting.current) return;
 
                     if (snapshot.exists()) {
@@ -290,28 +294,20 @@
                         if (data.dailyTargets) setDailyTargets(data.dailyTargets || {});
                         if (data.pairedGroups) setPairedGroups(data.pairedGroups || []);
                     } else {
-                        // BU AY İÇİN VERİ YOKSA (YENİ AY)
-                        // 1. Hekim listesini KORU (boşaltma), böylece önceki ayın hekimleri kalır.
-                        // 2. Nöbetleri ve İstekleri TEMİZLE.
-                        // 3. Hedefleri (Arz/Talep) genellikle sabit kalır veya sıfırlanır. Kullanıcı "temizlensin" dediği için temizliyoruz ama hekimleri tutuyoruz.
+                        // Yeni ay için temizlik
                         setShifts({});
                         setDoctorRequests({});
-                        // İsteğe bağlı: Hedefleri de sıfırlayabiliriz veya koruyabiliriz. 
-                        // Kullanıcı "Tercihleri ilgili ay için olsun" dedi.
                         setDoctorTargets({});
                         setDoctorGaps({});
                         setDailyTargets({});
                         setPairedGroups([]);
-                        
-                        // NOT: setDoctors'ı çağırmıyoruz, mevcut state'teki (önceki aydan kalan) hekimler duruyor.
-                        // Böylece kullanıcı yeni aya geçtiğinde hekimleri tekrar girmek zorunda kalmaz.
                     }
                 }, (error) => {
                     console.error("Veri okuma hatası:", error);
                 });
 
                 return () => unsubscribe();
-            }, [firebaseUser, currentDate]); // currentDate değişince listener değişir
+            }, [firebaseUser, currentDate]);
 
             // --- GÜVENLİ VERİ YAZMA (AYLIK) ---
             const saveToCloud = async (overrideData = {}) => {
@@ -319,11 +315,10 @@
 
                 isWriting.current = true;
 
-                // Hangi aya kaydedeceğiz?
                 const docId = getPeriodDocId(currentDate);
 
                 const dataToSave = {
-                    doctors, // Hekim listesi her ayın kaydında bulunsun (tarihçeli yapı)
+                    doctors, 
                     shifts,
                     requests: doctorRequests,
                     targets: doctorTargets,
@@ -345,7 +340,6 @@
                 }
             };
 
-            // --- DİĞER YARDIMCI FONKSİYONLAR ---
             const getDaysInMonth = (date) => {
                 const year = date.getFullYear();
                 const month = date.getMonth();
@@ -354,14 +348,12 @@
             };
             const days = getDaysInMonth(currentDate);
 
-            // Başlangıçta tüm doktorları kura havuzuna ekle
             useEffect(() => {
                 if (activeTab === 'lottery' && lotteryParticipants.length === 0) {
                     setLotteryParticipants(doctors.map(d => d.id));
                 }
             }, [activeTab]);
 
-            // Günlük hedefleri başlat
             useEffect(() => {
                 if (Object.keys(dailyTargets).length === 0) {
                     const initialDailyTargets = {};
@@ -477,7 +469,6 @@
                 return count;
             };
 
-            // --- EXPORT & RECORDING & SHARING ---
             const exportToPDF = () => { injectPrintStyles(); setTimeout(() => { window.print(); setPrintMenuOpen(false); }, 100); };
             const exportToJPEG = (targetRef) => {
                 setPrintMenuOpen(false);
@@ -540,7 +531,7 @@
                     mediaRecorderRef.current.onstop = () => {
                         const blob = new Blob(recordedChunks.current, { type: "video/webm" });
                         recordedChunks.current = [];
-                        setRecordedBlob(blob); // Paylaşım için Blob'u sakla
+                        setRecordedBlob(blob);
                         setIsRecording(false);
                         stream.getTracks().forEach(track => track.stop());
                     };
@@ -549,7 +540,7 @@
                     
                     mediaRecorderRef.current.start();
                     setIsRecording(true);
-                    setRecordedBlob(null); // Yeni kayıt başladığında eskiyi sil
+                    setRecordedBlob(null);
                 } catch (err) {
                     console.error("Ekran kaydı hatası:", err);
                     showModal("Hata", "Ekran kaydı başlatılamadı.", "error");
@@ -562,14 +553,12 @@
                 }
             };
 
-            // --- WHATSAPP PAYLAŞIM FONKSİYONU ---
             const shareVideoOnWhatsApp = async () => {
                 if (!recordedBlob) return;
 
                 const fileName = `kura-cekimi-${new Date().getTime()}.webm`;
                 const file = new File([recordedBlob], fileName, { type: "video/webm" });
 
-                // Mobil Cihazda Native Paylaşım
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     try {
                         await navigator.share({
@@ -579,10 +568,8 @@
                         });
                     } catch (err) {
                         console.error("Paylaşım hatası:", err);
-                        // Kullanıcı iptal ettiyse hata gösterme
                         if (err.name !== 'AbortError') {
                              showModal("Hata", "Mobil paylaşım başarısız oldu. Video indiriliyor...", "warning");
-                             // Fallback: İndirme başlat
                              const url = URL.createObjectURL(recordedBlob);
                              const a = document.createElement("a");
                              document.body.appendChild(a);
@@ -594,7 +581,6 @@
                         }
                     }
                 } else {
-                    // Masaüstü Fallback: İndir ve Modal ile Yönlendir (Popup Blocker Önlemi)
                     const url = URL.createObjectURL(recordedBlob);
                     const a = document.createElement("a");
                     document.body.appendChild(a);
@@ -622,7 +608,6 @@
                 }
             };
 
-            // --- STATE HELPERS ---
             const changeAllTargets = (delta) => { const newTargets = {}; const defaultTarget = Math.ceil((days.length * 2) / doctors.length); doctors.forEach(doc => { const current = doctorTargets[doc.id] !== undefined ? doctorTargets[doc.id] : defaultTarget; newTargets[doc.id] = Math.max(0, current + delta); }); setDoctorTargets(newTargets); saveToCloud({targets: newTargets}); };
             const changeAllGaps = (delta) => { const newGaps = {}; doctors.forEach(doc => { const current = doctorGaps[doc.id] !== undefined ? doctorGaps[doc.id] : 1; newGaps[doc.id] = Math.max(0, current + delta); }); setDoctorGaps(newGaps); saveToCloud({gaps: newGaps}); };
             const changeAllDailyTargets = (delta) => { const newDaily = {}; days.forEach(day => { const current = dailyTargets[day] !== undefined ? dailyTargets[day] : 2; newDaily[day] = Math.max(0, current + delta); }); setDailyTargets(newDaily); saveToCloud({dailyTargets: newDaily}); };
@@ -644,7 +629,6 @@
                 }
             };
 
-            // --- DAĞITIM ALGORİTMASI ---
             const confirmGeneration = () => {
                 const totalSupply = getTotalSupply();
                 const totalDemand = getTotalDemand();
@@ -673,10 +657,8 @@
                     const daysInMonth = days.length;
                     let newShifts = { ...shifts };
                     
-                    // Temizle
                     Object.keys(newShifts).forEach(key => { if (['24', '16', '8', '5'].includes(newShifts[key])) delete newShifts[key]; });
                     
-                    // Hazırlık
                     const targets = { ...doctorTargets };
                     const gaps = { ...doctorGaps };
                     let realTotalDemand = 0;
@@ -800,14 +782,12 @@
                 }
             };
 
-            // --- GRUPLAMA FONKSİYONLARI ---
             const [selectedForGroup, setSelectedForGroup] = useState([]);
             const [groupType, setGroupType] = useState('strict'); 
             const toggleSelectForGroup = (id) => { if (selectedForGroup.includes(id)) setSelectedForGroup(prev => prev.filter(x => x !== id)); else setSelectedForGroup(prev => [...prev, id]); };
             const createGroup = () => { if (selectedForGroup.length < 2) return showModal("Hata", "En az 2 hekim seçmelisiniz.", "error"); const newGroups = [...pairedGroups, { ids: selectedForGroup, type: groupType }]; setPairedGroups(newGroups); setSelectedForGroup([]); saveToCloud({pairedGroups: newGroups}); };
             const removeGroup = (index) => { const newGroups = pairedGroups.filter((_, i) => i !== index); setPairedGroups(newGroups); saveToCloud({pairedGroups: newGroups}); };
 
-            // --- GİRİŞ/ÇIKIŞ MANTIĞI & MODAL HANDLERS ---
             const showModal = (title, content, type = 'info', onConfirm = null) => {
                 setModalConfig({ isOpen: true, title, content, type, onConfirm });
             };
@@ -874,7 +854,6 @@
 
             const handleLogout = () => { setUserRole('guest'); setLoggedInDoctorId(null); setActiveTab('calendar'); };
 
-            // --- ETKİLEŞİM MANTIĞI ---
             const handleCellClick = (docId, day) => {
                 const key = `${docId}-${day}`;
                 const currentShift = shifts[key];
@@ -883,16 +862,27 @@
                     const newS = {...shifts};
                     if (newS[key] === selectedShiftType) delete newS[key]; else newS[key] = selectedShiftType;
                     setShifts(newS);
-                    saveToCloud({shifts: newS}); // ANINDA KAYDET
+                    saveToCloud({shifts: newS});
                 } else if (userRole === 'doctor' && docId === loggedInDoctorId) {
+                    const adminAssigned = ['24', '16', '8', '5', 'İİ', 'Nİ'];
+                    if (currentShift && adminAssigned.includes(currentShift)) {
+                        showModal("Uyarı", "Yöneticinin atadığı nöbeti değiştiremezsiniz.", "error");
+                        return;
+                    }
+
                     const newS = {...shifts};
-                    if (!currentShift) { newS[key] = 'X'; setShifts(newS); saveToCloud({shifts: newS}); }
-                    else if (currentShift === 'X') { delete newS[key]; setShifts(newS); saveToCloud({shifts: newS}); }
-                    else showModal("Uyarı", "Yöneticinin atadığı nöbeti değiştiremezsiniz.", "error");
+                    // Seçilen türü kullan
+                    if (newS[key] === selectedShiftType) {
+                        delete newS[key]; // Aynıysa sil (toggle)
+                    } else {
+                        newS[key] = selectedShiftType; // Farklıysa ata
+                    }
+                    
+                    setShifts(newS);
+                    saveToCloud({shifts: newS});
                 }
             };
 
-            // --- KURA İŞLEMLERİ ---
             const toggleLotteryParticipant = (id) => { if (lotteryParticipants.includes(id)) setLotteryParticipants(prev => prev.filter(p => p !== id)); else setLotteryParticipants(prev => [...prev, id]); };
             const handleLotteryDraw = () => {
                 if (lotteryParticipants.length === 0) return showModal("Hata", "Lütfen en az bir kişi seçin.", "error");
@@ -913,7 +903,6 @@
                         {modalConfig.content}
                     </Modal>
 
-                    {/* ÜST MENÜ */}
                     <div className="bg-white shadow-sm border-b sticky top-0 z-50 print:hidden">
                         <div className="max-w-7xl mx-auto px-4 py-3">
                             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -942,7 +931,10 @@
                                             <button onClick={() => setActiveTab('lottery')} className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === 'lottery' ? 'bg-white shadow text-pink-600 font-bold' : 'text-gray-500 hover:text-gray-700'}`}><Icons.Dices /> Kura Çek</button>
                                         </>
                                     )}
-                                    <button onClick={() => setActiveTab('bluecode')} className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === 'bluecode' ? 'bg-white shadow text-red-600 font-bold' : 'text-gray-500 hover:text-gray-700'}`}><Icons.Activity /> Mavi Kod</button>
+                                    {/* Sadece Admin Mavi Kod görebilir */}
+                                    {userRole === 'admin' && (
+                                        <button onClick={() => setActiveTab('bluecode')} className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === 'bluecode' ? 'bg-white shadow text-red-600 font-bold' : 'text-gray-500 hover:text-gray-700'}`}><Icons.Activity /> Mavi Kod</button>
+                                    )}
                                 </div>
                                 <div className="flex gap-2">
                                     {userRole === 'guest' ? (
@@ -964,10 +956,8 @@
                         </div>
                     </div>
 
-                    {/* --- 1. SEKME: TAKVİM GÖRÜNÜMÜ --- */}
                     {activeTab === 'calendar' && (
                         <div className="max-w-full mx-auto p-4 animate-in fade-in duration-300">
-                            {/* Takvim Kontrolleri */}
                             <div className="bg-white p-4 rounded-xl shadow-sm border mb-4 flex flex-wrap gap-4 justify-between items-center print:hidden relative">
                                 <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded border">
                                     <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth()-1))} className="p-1 hover:bg-gray-200 rounded"><Icons.ChevronLeft /></button>
@@ -985,8 +975,16 @@
                                 )}
 
                                 {userRole === 'doctor' && (
-                                    <div className="text-sm text-gray-600 font-medium bg-blue-50 px-3 py-1 rounded border border-blue-100">
-                                        <span className="font-bold text-blue-700">Mod:</span> Sadece "İstemiyorum (X)" girebilirsiniz.
+                                    <div className="flex items-center gap-2 animate-in fade-in">
+                                        <span className="font-bold text-gray-600">Tercih:</span>
+                                        <select value={selectedShiftType} onChange={(e) => setSelectedShiftType(e.target.value)} className="border p-1 rounded bg-white font-medium text-gray-700 focus:ring-2 focus:ring-blue-300 outline-none">
+                                            {['X', 'Yİ', 'R'].map(t => (
+                                                <option key={t} value={t}>
+                                                    {t === 'X' ? 'X (İstemiyorum)' : t === 'Yİ' ? 'Yıllık İzin' : 'Rapor'}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <span className="text-xs text-gray-500 ml-2 hidden sm:inline">(Seçili durumu kutuya işlemek için tıklayın)</span>
                                     </div>
                                 )}
                                 
@@ -1005,43 +1003,44 @@
                                         </>
                                     )}
                                     
-                                    <div className="relative">
-                                        <button onClick={() => setPrintMenuOpen(!printMenuOpen)} className="bg-blue-600 text-white px-3 py-1 rounded flex items-center gap-1 hover:bg-blue-700"><Icons.Printer /> Yazdır</button>
-                                        {printMenuOpen && (
-                                            <div className="absolute right-0 top-full mt-2 w-40 bg-white shadow-xl rounded-lg border z-50 overflow-hidden">
-                                                <button onClick={exportToPDF} className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-gray-700"><Icons.Printer size={16}/> PDF (Yazdır)</button>
-                                                <button onClick={() => exportToJPEG('calendar')} className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-gray-700"><Icons.FileImage size={16}/> Resim (JPEG)</button>
-                                                <button onClick={() => exportToExcel('calendar')} className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-gray-700"><Icons.FileSpreadsheet size={16}/> Excel (.xlsx)</button>
-                                            </div>
-                                        )}
-                                    </div>
+                                    {userRole === 'admin' && (
+                                        <div className="relative">
+                                            <button onClick={() => setPrintMenuOpen(!printMenuOpen)} className="bg-blue-600 text-white px-3 py-1 rounded flex items-center gap-1 hover:bg-blue-700"><Icons.Printer /> Yazdır</button>
+                                            {printMenuOpen && (
+                                                <div className="absolute right-0 top-full mt-2 w-40 bg-white shadow-xl rounded-lg border z-50 overflow-hidden">
+                                                    <button onClick={exportToPDF} className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-gray-700"><Icons.Printer size={16}/> PDF (Yazdır)</button>
+                                                    <button onClick={() => exportToJPEG('calendar')} className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-gray-700"><Icons.FileImage size={16}/> Resim (JPEG)</button>
+                                                    <button onClick={() => exportToExcel('calendar')} className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-gray-700"><Icons.FileSpreadsheet size={16}/> Excel (.xlsx)</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* TABLO */}
                             <div ref={tableRef} className="max-w-full overflow-x-auto bg-white shadow-lg rounded-xl border border-gray-200 print:shadow-none print:border-none print:overflow-visible">
                                 <div className="hidden print:block text-center mb-6 mt-4">
                                     <h2 className="text-2xl font-bold">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()} - Hekim Nöbet Çizelgesi</h2>
                                 </div>
-                                <table className="w-full text-sm border-collapse">
+                                <table className="w-full text-base border-collapse">
                                     <thead>
                                         <tr>
-                                            <th className="sticky left-0 z-20 bg-gray-100 border-b border-r border-gray-300 p-3 min-w-[200px] text-left text-gray-700 font-bold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Hekim Adı / Günler</th>
+                                            <th className="sticky left-0 z-20 bg-gray-100 border-b-2 border-r-2 border-gray-300 p-3 min-w-[200px] text-left text-gray-700 font-bold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Hekim Adı / Günler</th>
                                             {days.map(day => {
                                                 const status = checkDayStatus(day);
                                                 return (
-                                                    <th key={day} className={`border-b border-r border-gray-300 p-1 min-w-[34px] text-center ${status.isOff ? 'bg-gray-200 text-gray-800' : 'bg-gray-50 text-gray-600'}`}>
+                                                    <th key={day} className={`border-b-2 border-r-2 border-gray-300 p-1 min-w-[34px] text-center ${status.isOff ? 'bg-gray-200 text-gray-800' : 'bg-gray-50 text-gray-600'}`}>
                                                         <div className="flex flex-col items-center justify-center h-full">
-                                                            <span className="text-[10px] font-medium mb-1 opacity-70">{new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toLocaleDateString('tr-TR', { weekday: 'short' }).slice(0,2)}</span>
+                                                            <span className="text-xs font-medium mb-1 opacity-70">{new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toLocaleDateString('tr-TR', { weekday: 'short' }).slice(0,2)}</span>
                                                             <span className="font-bold text-lg">{day}</span>
                                                         </div>
                                                     </th>
                                                 );
                                             })}
-                                            <th className="sticky right-0 z-20 bg-gray-100 border-b border-l border-gray-300 p-2 min-w-[50px] text-center font-bold text-gray-700 text-xs">Toplam<br/>Nöbet</th>
-                                            <th className="sticky right-0 z-20 bg-gray-100 border-b border-l border-gray-300 p-2 min-w-[50px] text-center font-bold text-gray-700 text-xs">Top.<br/>Saat</th>
-                                            <th className="sticky right-0 z-20 bg-gray-100 border-b border-l border-gray-300 p-2 min-w-[50px] text-center font-bold text-gray-700 text-xs">Aylık<br/>Mesai</th>
-                                            <th className="sticky right-0 z-20 bg-gray-100 border-b border-l border-gray-300 p-2 min-w-[50px] text-center font-bold text-gray-700 text-xs shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">Ek<br/>Mesai</th>
+                                            <th className="sticky right-0 z-20 bg-gray-100 border-b-2 border-l-2 border-gray-300 p-2 min-w-[50px] text-center font-bold text-gray-700 text-xs">Toplam<br/>Nöbet</th>
+                                            <th className="sticky right-0 z-20 bg-gray-100 border-b-2 border-l-2 border-gray-300 p-2 min-w-[50px] text-center font-bold text-gray-700 text-xs">Top.<br/>Saat</th>
+                                            <th className="sticky right-0 z-20 bg-gray-100 border-b-2 border-l-2 border-gray-300 p-2 min-w-[50px] text-center font-bold text-gray-700 text-xs">Aylık<br/>Mesai</th>
+                                            <th className="sticky right-0 z-20 bg-gray-100 border-b-2 border-l-2 border-gray-300 p-2 min-w-[50px] text-center font-bold text-gray-700 text-xs shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">Ek<br/>Mesai</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1053,7 +1052,7 @@
 
                                             return (
                                                 <tr key={doctor.id} className={rowClass}>
-                                                    <td className="sticky left-0 z-10 bg-white border-b border-r border-gray-200 p-2 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group">
+                                                    <td className="sticky left-0 z-10 bg-white border-b-2 border-r-2 border-gray-300 p-2 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group">
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-gray-400 text-xs w-4">{index + 1}</span>
                                                             {userRole === 'admin' ? (
@@ -1074,37 +1073,35 @@
                                                         const status = checkDayStatus(day);
                                                         const clickable = userRole === 'admin' || (userRole === 'doctor' && isMe);
                                                         return (
-                                                            <td key={day} onClick={() => { if(clickable) handleCellClick(doctor.id, day); }} className={`border-b border-r border-gray-200 transition-all duration-200 relative group ${clickable ? 'cursor-pointer' : 'cursor-default'} ${status.isOff ? 'bg-gray-200 hover:bg-gray-300' : 'hover:bg-blue-50'} ${!clickable && !status.isOff ? 'bg-white' : ''}`}>
+                                                            <td key={day} onClick={() => { if(clickable) handleCellClick(doctor.id, day); }} className={`border-b-2 border-r-2 border-gray-300 transition-all duration-200 relative group ${clickable ? 'cursor-pointer' : 'cursor-default'} ${status.isOff ? 'bg-gray-200 hover:bg-gray-300' : 'hover:bg-blue-50'} ${!clickable && !status.isOff ? 'bg-white' : ''}`}>
                                                                 <div className="h-10 w-full flex items-center justify-center">
                                                                     {shiftValue && (<div className={getShiftStyle(shiftValue)}>{shiftValue}</div>)}
                                                                 </div>
                                                             </td>
                                                         );
                                                     })}
-                                                    <td className="sticky right-0 z-10 bg-gray-50 border-b border-l border-gray-200 p-2 text-center font-bold text-green-700">{stats.count24}</td>
-                                                    <td className="sticky right-0 z-10 bg-gray-50 border-b border-l border-gray-200 p-2 text-center font-bold text-blue-700">{stats.totalWorkedHours}</td>
-                                                    <td className="sticky right-0 z-10 bg-gray-50 border-b border-l border-gray-200 p-2 text-center text-gray-600 text-xs">{stats.personalTarget}</td>
-                                                    <td className={`sticky right-0 z-10 bg-gray-50 border-b border-l border-gray-200 p-2 text-center font-bold shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] ${stats.extraHours < 0 ? 'text-red-600' : 'text-blue-600'}`}>{stats.extraHours}</td>
+                                                    <td className="sticky right-0 z-10 bg-gray-50 border-b-2 border-l-2 border-gray-200 p-2 text-center font-bold text-green-700">{stats.count24}</td>
+                                                    <td className="sticky right-0 z-10 bg-gray-50 border-b-2 border-l-2 border-gray-200 p-2 text-center font-bold text-blue-700">{stats.totalWorkedHours}</td>
+                                                    <td className="sticky right-0 z-10 bg-gray-50 border-b-2 border-l-2 border-gray-200 p-2 text-center text-gray-600 text-xs">{stats.personalTarget}</td>
+                                                    <td className={`sticky right-0 z-10 bg-gray-50 border-b-2 border-l-2 border-gray-200 p-2 text-center font-bold shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] ${stats.extraHours < 0 ? 'text-red-600' : 'text-blue-600'}`}>{stats.extraHours}</td>
                                                 </tr>
                                             );
                                         })}
                                         <tr>
-                                            <td className="sticky left-0 z-10 bg-gray-50 border-b border-r border-gray-200 p-2 font-bold text-gray-700 text-right">Günlük:</td>
-                                            {days.map(day => (<td key={`day-total-${day}`} className="border-b border-r border-gray-200 p-1 text-center font-bold text-gray-600 text-xs">{getDailyDoctorCount(day)}</td>))}
-                                            <td className="sticky right-0 z-10 bg-gray-50 border-b border-l border-gray-200"></td><td className="sticky right-0 z-10 bg-gray-50 border-b border-l border-gray-200"></td><td className="sticky right-0 z-10 bg-gray-50 border-b border-l border-gray-200"></td><td className="sticky right-0 z-10 bg-gray-50 border-b border-l border-gray-200"></td>
+                                            <td className="sticky left-0 z-10 bg-gray-50 border-b-2 border-r-2 border-gray-300 p-2 font-bold text-gray-700 text-right">Günlük:</td>
+                                            {days.map(day => (<td key={`day-total-${day}`} className="border-b-2 border-r-2 border-gray-300 p-1 text-center font-bold text-gray-600 text-xs">{getDailyDoctorCount(day)}</td>))}
+                                            <td className="sticky right-0 z-10 bg-gray-50 border-b-2 border-l-2 border-gray-200"></td><td className="sticky right-0 z-10 bg-gray-50 border-b-2 border-l-2 border-gray-200"></td><td className="sticky right-0 z-10 bg-gray-50 border-b-2 border-l-2 border-gray-200"></td><td className="sticky right-0 z-10 bg-gray-50 border-b-2 border-l-2 border-gray-200"></td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
 
-                            {/* İSTEKLER BÖLÜMÜ */}
                             <div className="mt-8 bg-white p-6 rounded-xl shadow-sm border border-yellow-100 print:hidden">
                                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                                     <span className="bg-yellow-100 text-yellow-600 p-2 rounded-lg"><Icons.MessageSquare size={20} /></span> 
                                     Nöbet & İzin İstekleri
                                 </h3>
 
-                                {/* Hekim Modu */}
                                 {userRole === 'doctor' && loggedInDoctorId && (
                                     <div className="space-y-3">
                                         <label className="block text-sm font-medium text-gray-700">
@@ -1124,7 +1121,6 @@
                                     </div>
                                 )}
 
-                                {/* Yönetici Modu */}
                                 {userRole === 'admin' && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {doctors.map(doc => {
@@ -1160,12 +1156,9 @@
                         </div>
                     )}
 
-                    {/* --- 2. SEKME: OTOMATİK DAĞITICI --- */}
                     {activeTab === 'generator' && (
                         <div className="max-w-7xl mx-auto p-4 animate-in slide-in-from-right-4 duration-300">
-                             {/* Otomatik Dağıtıcı Paneli */}
                              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                {/* SOL: HEKİM AYARLARI */}
                                 <div className="space-y-4">
                                     <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-100 h-full"><div className="flex justify-between items-center mb-4"><h3 className="text-md font-bold text-gray-800 flex items-center gap-2"><div className="bg-blue-100 p-1.5 rounded text-blue-600"><Icons.BrainCircuit /></div> Kişisel Hedefler (Arz)</h3><div className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 font-medium">Toplam: <span className="text-blue-600 font-bold">{getTotalSupply()}</span></div></div><div className="max-h-[500px] overflow-y-auto pr-2 space-y-2"><div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-gray-500 px-1 mb-1 items-center"><div className="col-span-4">Hekim (H.İçi/H.Sonu)</div><div className="col-span-4 flex justify-center items-center gap-1"><button onClick={() => changeAllTargets(-1)} className="w-4 h-4 bg-gray-200 rounded flex items-center justify-center text-[9px] hover:bg-gray-300">-</button><span>Hedef</span><button onClick={() => changeAllTargets(1)} className="w-4 h-4 bg-gray-200 rounded flex items-center justify-center text-[9px] hover:bg-gray-300">+</button></div><div className="col-span-4 flex justify-center items-center gap-1"><button onClick={() => changeAllGaps(-1)} className="w-4 h-4 bg-gray-200 rounded flex items-center justify-center text-[9px] hover:bg-gray-300">-</button><span>Boşluk</span><button onClick={() => changeAllGaps(1)} className="w-4 h-4 bg-gray-200 rounded flex items-center justify-center text-[9px] hover:bg-gray-300">+</button></div></div>{doctors.map(doc => { 
                                         const currentTarget = doctorTargets[doc.id] !== undefined ? doctorTargets[doc.id] : Math.ceil(getTotalDemand() / doctors.length); 
@@ -1180,11 +1173,9 @@
                                         return (<div key={doc.id} className="grid grid-cols-12 gap-1 items-center bg-gray-50 p-2 rounded-lg border hover:bg-gray-100 transition-colors"><div className="col-span-4 flex flex-col"><span className="font-medium truncate text-xs">{doc.name}</span><span className="text-[9px] text-gray-500 font-mono flex gap-1">HI:<span className="text-blue-600 font-bold">{weekdayCount}</span> HS:<span className="text-orange-600 font-bold">{weekendCount}</span></span></div><div className="col-span-4 flex items-center justify-center gap-1"><button onClick={() => { const val = Math.max(0, currentTarget - 1); setDoctorTargets({...doctorTargets, [doc.id]: val}); saveToCloud({targets: {...doctorTargets, [doc.id]: val}}); }} className="w-5 h-5 bg-white border rounded hover:bg-red-50 text-red-600 font-bold">-</button><span className="w-6 text-center font-bold text-blue-700">{currentTarget}</span><button onClick={() => { const val = currentTarget + 1; setDoctorTargets({...doctorTargets, [doc.id]: val}); saveToCloud({targets: {...doctorTargets, [doc.id]: val}}); }} className="w-5 h-5 bg-white border rounded hover:bg-green-50 text-green-600 font-bold">+</button></div><div className="col-span-4 flex items-center justify-center gap-1"><button onClick={() => { const val = Math.max(0, currentGap - 1); setDoctorGaps({...doctorGaps, [doc.id]: val}); saveToCloud({gaps: {...doctorGaps, [doc.id]: val}}); }} className="w-5 h-5 bg-white border rounded hover:bg-gray-200">-</button><span className="w-6 text-center font-medium text-gray-700 text-xs">{currentGap}</span><button onClick={() => { const val = currentGap + 1; setDoctorGaps({...doctorGaps, [doc.id]: val}); saveToCloud({gaps: {...doctorGaps, [doc.id]: val}}); }} className="w-5 h-5 bg-white border rounded hover:bg-gray-200">+</button></div></div>); 
                                     })}</div></div>
                                 </div>
-                                {/* ORTA: GÜNLÜK HEDEFLER */}
                                 <div className="space-y-4">
                                     <div className="bg-white p-4 rounded-xl shadow-sm border border-purple-100 h-full flex flex-col"><div className="flex justify-between items-center mb-4"><h3 className="text-md font-bold text-gray-800 flex items-center gap-2"><div className="bg-purple-100 p-1.5 rounded text-purple-600"><Icons.LayoutList /></div> Günlük İhtiyaç (Talep)</h3><div className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 font-medium">Toplam: <span className="text-purple-600 font-bold">{getTotalDemand()}</span></div></div><div className="bg-purple-50 p-2 rounded text-[10px] text-purple-800 mb-2 border border-purple-200 flex justify-between items-center"><span>Tüm Günler:</span><div className="flex gap-1"><button onClick={() => changeAllDailyTargets(-1)} className="px-2 py-0.5 bg-white rounded border hover:bg-purple-100 font-bold">-</button><button onClick={() => changeAllDailyTargets(1)} className="px-2 py-0.5 bg-white rounded border hover:bg-purple-100 font-bold">+</button></div></div><div className="grid grid-cols-3 gap-2 overflow-y-auto pr-1 flex-1 content-start">{days.map(day => { const status = checkDayStatus(day); const target = dailyTargets[day] !== undefined ? dailyTargets[day] : 2; return (<div key={day} className={`flex flex-col items-center p-2 rounded border ${status.isOff ? 'bg-orange-50 border-orange-100' : 'bg-gray-50 border-gray-100'}`}><span className={`text-[10px] font-bold mb-1 ${status.isOff ? 'text-orange-600' : 'text-gray-500'}`}>{day} {monthNames[currentDate.getMonth()].slice(0,3)}</span><div className="flex items-center gap-1"><button onClick={() => { const val = Math.max(0, target - 1); setDailyTargets({...dailyTargets, [day]: val}); saveToCloud({dailyTargets: {...dailyTargets, [day]: val}}); }} className="w-5 h-5 bg-white border rounded hover:bg-gray-100">-</button><span className="font-bold text-gray-700 w-4 text-center">{target}</span><button onClick={() => { const val = target + 1; setDailyTargets({...dailyTargets, [day]: val}); saveToCloud({dailyTargets: {...dailyTargets, [day]: val}}); }} className="w-5 h-5 bg-white border rounded hover:bg-gray-100">+</button></div></div>) })}</div></div>
                                 </div>
-                                {/* SAĞ: GRUPLAMA VE AKSİYON */}
                                 <div className="space-y-4">
                                     <div className="bg-white p-4 rounded-xl shadow-sm border border-orange-100">
                                         <h3 className="text-md font-bold text-gray-800 mb-3 flex items-center gap-2"><div className="bg-orange-100 p-1.5 rounded text-orange-600"><Icons.Users /></div> Birlikte Nöbet (Buddy)</h3>
@@ -1215,11 +1206,9 @@
                         </div>
                     )}
 
-                    {/* --- 4. YENİ SEKME: KURA ÇEKME --- */}
                     {activeTab === 'lottery' && (
                         <div className="max-w-6xl mx-auto p-4 animate-in slide-in-from-bottom-4 duration-500">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                {/* SOL: AYARLAR */}
                                 <div className="bg-white p-6 rounded-2xl shadow-lg border border-pink-100 flex flex-col h-full">
                                     <div className="flex items-center gap-3 mb-6">
                                         <div className="p-3 bg-pink-100 text-pink-600 rounded-xl"><Icons.Dices size={32} /></div>
@@ -1253,7 +1242,6 @@
                                         {isDrawing ? 'Çekiliyor...' : <><Icons.Dices /> KURA ÇEK</>}
                                     </button>
                                 </div>
-                                {/* SAĞ: SONUÇ ALANI VE KAYIT */}
                                 <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[500px]">
                                     <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
                                         {!isRecording ? (
@@ -1265,7 +1253,6 @@
                                                 <Icons.StopCircle size={14} /> Kaydı Bitir
                                             </button>
                                         )}
-                                        {/* WHATSAPP PAYLAŞIM BUTONU */}
                                         {recordedBlob && !isRecording && (
                                             <button onClick={shareVideoOnWhatsApp} className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full text-xs font-bold transition-all animate-in fade-in zoom-in">
                                                 <Icons.Share size={14} /> WhatsApp ile Paylaş
@@ -1309,7 +1296,6 @@
                         </div>
                     )}
 
-                    {/* --- 3. SEKME: MAVİ KOD LİSTESİ --- */}
                     {activeTab === 'bluecode' && (
                         <div className="blue-code-wrapper">
                             <div ref={blueCodeRef} className="bg-white shadow-lg blue-code-container" style={{ width: '210mm', minHeight: '297mm', padding: '20mm', margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
