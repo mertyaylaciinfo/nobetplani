@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Akıllı Nöbet Çizelgesi (Online)</title>
+    <title>Akıllı Nöbet Çizelgesi (Pro)</title>
     <!-- React ve ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,7 +22,7 @@
     
     <style>
         /* Ekran Stilleri */
-        body { background-color: #f3f4f6; }
+        body { background-color: #f3f4f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         
         /* Özel Scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -30,16 +30,23 @@
         ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
 
+        /* Modal Animasyonları */
+        @keyframes scaleIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .modal-animate {
+            animation: scaleIn 0.2s ease-out forwards;
+        }
+
         /* Kura Animasyonları */
         @keyframes bounce-slow {
             0%, 100% { transform: translateY(-5%); }
             50% { transform: translateY(5%); }
         }
-        .animate-bounce-slow {
-            animation: bounce-slow 2s infinite;
-        }
+        .animate-bounce-slow { animation: bounce-slow 2s infinite; }
 
-        /* Yazdırma Temel Ayarları */
+        /* Yazdırma Ayarları */
         @media print {
             body { 
                 -webkit-print-color-adjust: exact !important; 
@@ -51,8 +58,7 @@
             .print\:hidden { display: none !important; }
             .no-break { break-inside: avoid; }
             
-            /* Sayfa kenar boşluklarını sıfırlayıp içeriği biz yönetelim */
-            @page { margin: 0; }
+            @page { margin: 0; size: auto; }
         }
     </style>
 </head>
@@ -65,7 +71,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- GÜNCELLENMİŞ FIREBASE AYARLARI (Sizin Projeniz) ---
+        // --- FIREBASE KONFIGURASYONU ---
         const myFirebaseConfig = {
             apiKey: "AIzaSyDkYb--zciZkccOC3fD_ym5LQmxoTEL7ZE",
             authDomain: "akilli-nobet-cizelgesi.firebaseapp.com",
@@ -76,27 +82,18 @@
             measurementId: "G-JY572HCLHR"
         };
 
-        // --------------------------------------------------------
-        // AKILLI ORTAM ALGILAMA (GitHub vs Canvas)
-        // --------------------------------------------------------
-        
         let firebaseConfig;
         let appId;
 
-        // 1. Sizin sağladığınız ayarları kullan (GitHub/Host ortamı için)
-        if (myFirebaseConfig.apiKey && myFirebaseConfig.apiKey !== "BURAYA_API_KEY_YAZILACAK") {
-            firebaseConfig = myFirebaseConfig;
-            appId = 'nobet-sistemi-v1'; // Verilerin kaydedileceği klasör adı
-            window.isCustomConfig = true; // Kendi config'inizi kullandığınızı işaretliyoruz
-        } 
-        // 2. Aksi halde Canvas önizleme ortamı ayarlarını kontrol et (Sadece geliştirme sırasında çalışır)
-        else if (typeof __firebase_config !== 'undefined') {
+        if (typeof __firebase_config !== 'undefined') {
             firebaseConfig = JSON.parse(__firebase_config);
             appId = typeof __app_id !== 'undefined' ? __app_id : 'demo-app-id';
             window.isCustomConfig = false;
-        }
-        // 3. Hiçbiri yoksa (Offline Mod)
-        else {
+        } else if (myFirebaseConfig.apiKey && myFirebaseConfig.apiKey !== "BURAYA_API_KEY_YAZILACAK") {
+            firebaseConfig = myFirebaseConfig;
+            appId = 'nobet-sistemi-v1';
+            window.isCustomConfig = true;
+        } else {
             firebaseConfig = null;
             appId = 'nobet-sistemi-v1';
             window.isCustomConfig = false;
@@ -107,8 +104,6 @@
                 const app = initializeApp(firebaseConfig);
                 const auth = getAuth(app);
                 const db = getFirestore(app);
-
-                // React'in erişebilmesi için window objesine atıyoruz
                 window.db = db;
                 window.auth = auth;
                 window.appId = appId;
@@ -120,13 +115,11 @@
                 window.signInWithCustomToken = signInWithCustomToken;
                 window.onAuthStateChanged = onAuthStateChanged;
                 window.isFirebaseAvailable = true;
-                console.log("Firebase bağlantısı başlatıldı. AppID:", appId);
             } catch (e) {
-                console.error("Firebase başlatma hatası:", e);
+                console.error("Firebase Hatası:", e);
                 window.isFirebaseAvailable = false;
             }
         } else {
-            console.warn("Firebase ayarları girilmemiş! Veriler sadece bu cihazda kalır (Offline Mod).");
             window.isFirebaseAvailable = false;
         }
     </script>
@@ -134,7 +127,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- İKONLAR ---
+        // --- ICONS ---
         const Icons = {
             Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>,
             Printer: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>,
@@ -158,7 +151,32 @@
             UserCheck: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>,
             Dices: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="12" height="12" x="2" y="10" rx="2" ry="2"/><path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6"/><path d="M6 18h.01"/><path d="M10 14h.01"/><path d="M15 6h.01"/><path d="M18 9h.01"/></svg>,
             MessageSquare: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
-            Cloud: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c0-1.7-1.3-3-3-3h-1.1c-.1-2.9-2.4-5.2-5.3-5.3h-.1C5.3 10.7 3 13 3 15.9c0 2.9 2.3 5.1 5.1 5.1h9.4c1.7 0 3-1.3 3-3z"/></svg>
+            Cloud: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c0-1.7-1.3-3-3-3h-1.1c-.1-2.9-2.4-5.2-5.3-5.3h-.1C5.3 10.7 3 13 3 15.9c0 2.9 2.3 5.1 5.1 5.1h9.4c1.7 0 3-1.3 3-3z"/></svg>,
+            Video: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>,
+            StopCircle: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><rect width="6" height="6" x="9" y="9"/></svg>,
+            Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+            Share: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>,
+            AlertTriangle: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+        };
+
+        // --- MODAL COMPONENT (Geliştirilmiş - Backdrop Click & Keyboard) ---
+        const Modal = ({ isOpen, onClose, title, children, type = 'info' }) => {
+            if (!isOpen) return null;
+            return (
+                <div onClick={onClose} className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity cursor-pointer">
+                    <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 m-4 modal-animate relative border border-gray-100 cursor-default">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><Icons.X size={20} /></button>
+                        <div className="mb-4">
+                            {type === 'error' && <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100"><Icons.AlertTriangle className="text-red-600" /></div>}
+                            {type === 'warning' && <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-orange-100"><Icons.AlertTriangle className="text-orange-600" /></div>}
+                            {type === 'success' && <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100"><Icons.Check className="text-green-600" /></div>}
+                            {type === 'info' && <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100"><Icons.Lock className="text-blue-600" /></div>}
+                        </div>
+                        <h3 className="text-xl font-bold text-center text-gray-900 mb-2">{title}</h3>
+                        <div className="mt-2 text-center text-gray-600">{children}</div>
+                    </div>
+                </div>
+            );
         };
 
         function NobetCizelgesi() {
@@ -172,8 +190,8 @@
             const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
             const [firebaseUser, setFirebaseUser] = useState(null);
             
-            // Ref to prevent infinite loops during data sync
-            const isRemoteUpdate = useRef(false);
+            // Veri yazma kilidi (Snapshot döngüsünü engellemek için)
+            const isWriting = useRef(false);
 
             // KURA SİSTEMİ STATE'LERİ
             const [lotteryTitle, setLotteryTitle] = useState('Nöbet Kurası');
@@ -182,10 +200,19 @@
             const [lotteryResults, setLotteryResults] = useState(null);
             const [isDrawing, setIsDrawing] = useState(false);
 
+            // MODAL STATES
+            const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', content: null, type: 'info', onConfirm: null });
+            
+            // SCREEN RECORDING
+            const [isRecording, setIsRecording] = useState(false);
+            const [recordedBlob, setRecordedBlob] = useState(null); // Paylaşım için Blob
+            const mediaRecorderRef = useRef(null);
+            const recordedChunks = useRef([]);
+
             const tableRef = useRef(null);
             const blueCodeRef = useRef(null);
             
-            // --- VERİ STATE'LERİ (Başlangıç değerleri localStorage veya varsayılan) ---
+            // --- VERİ STATE'LERİ ---
             const defaultDoctors = [
                 { id: 1, name: 'Dr. Ahmet Yılmaz', tc: '14767899180' },
                 { id: 2, name: 'Dr. Ayşe Demir', tc: '22222222222' },
@@ -199,29 +226,9 @@
                 { id: 10, name: 'Dr. Elif Koç', tc: '10101010101' },
             ];
 
-            const [doctors, setDoctors] = useState(() => {
-                const saved = localStorage.getItem('nobet_doctors');
-                let loadedDoctors = saved ? JSON.parse(saved) : defaultDoctors;
-                return loadedDoctors.map(doc => {
-                    if (!doc.tc) {
-                        const defaultDoc = defaultDoctors.find(d => d.id === doc.id);
-                        return { ...doc, tc: defaultDoc ? defaultDoc.tc : (10000000000 + doc.id).toString() };
-                    }
-                    return doc;
-                });
-            });
-
-            const [shifts, setShifts] = useState(() => {
-                const saved = localStorage.getItem('nobet_shifts');
-                return saved ? JSON.parse(saved) : {};
-            });
-
-            const [doctorRequests, setDoctorRequests] = useState(() => {
-                const saved = localStorage.getItem('nobet_requests');
-                return saved ? JSON.parse(saved) : {};
-            });
-
-            // Diğer State'ler
+            const [doctors, setDoctors] = useState(defaultDoctors);
+            const [shifts, setShifts] = useState({});
+            const [doctorRequests, setDoctorRequests] = useState({});
             const [doctorTargets, setDoctorTargets] = useState({});
             const [doctorGaps, setDoctorGaps] = useState({});
             const [dailyTargets, setDailyTargets] = useState({}); 
@@ -230,38 +237,24 @@
 
             const shiftTypes = ['24', '16', '8', '5', 'Yİ', 'İİ', 'R', 'X']; 
             const [selectedShiftType, setSelectedShiftType] = useState('24');
-            
             const monthNames = ["OCAK", "ŞUBAT", "MART", "NİSAN", "MAYIS", "HAZİRAN", "TEMMUZ", "AĞUSTOS", "EYLÜL", "EKİM", "KASIM", "ARALIK"];
 
             // --- FIREBASE BAĞLANTISI ---
             useEffect(() => {
                 if (window.isFirebaseAvailable) {
                     const initAuth = async () => {
-                        // Kendi config'inizi kullanıyorsanız direkt anonim giriş yapın
-                        // Otomatik token sadece Canvas ortamı içindir
                         if (window.isCustomConfig) {
-                            try {
-                                await window.signInAnonymously(window.auth);
-                            } catch (err) {
-                                console.error("Özel config girişi hatası:", err);
-                            }
+                            try { await window.signInAnonymously(window.auth); } catch (err) { console.error(err); }
                             return;
                         }
-
-                        // Canvas ortamındaysa token dene, olmazsa anonim
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            try {
-                                await window.signInWithCustomToken(window.auth, __initial_auth_token);
-                            } catch (e) {
-                                console.warn("Token hatası, anonim deneniyor:", e);
-                                await window.signInAnonymously(window.auth);
-                            }
+                            try { await window.signInWithCustomToken(window.auth, __initial_auth_token); } 
+                            catch (e) { await window.signInAnonymously(window.auth); }
                         } else {
                             await window.signInAnonymously(window.auth);
                         }
                     };
                     initAuth();
-
                     const unsubscribe = window.onAuthStateChanged(window.auth, (user) => {
                         setFirebaseUser(user);
                         setIsFirebaseConnected(!!user);
@@ -270,78 +263,89 @@
                 }
             }, []);
 
-            // --- VERİ OKUMA (LISTENER) ---
+            // --- YARDIMCI: DÖNEM ID OLUŞTURUCU ---
+            const getPeriodDocId = (date) => {
+                return `nobet_data_${date.getFullYear()}_${date.getMonth()}`;
+            };
+
+            // --- VERİ OKUMA (AYLIK) ---
             useEffect(() => {
                 if (!firebaseUser || !window.isFirebaseAvailable) return;
 
-                const docRef = window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'nobet_system', 'main_doc');
+                // Dinamik Doc ID: Yıl ve Ay'a göre değişir
+                const docId = getPeriodDocId(currentDate);
+                const docRef = window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'nobet_system', docId);
                 
                 const unsubscribe = window.onSnapshot(docRef, (snapshot) => {
+                    // Eğer şu an biz yazıyorsak, gelen güncellemeyi yoksay (döngüyü kır)
+                    if (isWriting.current) return;
+
                     if (snapshot.exists()) {
                         const data = snapshot.data();
-                        
-                        // Döngüye girmemesi için flag koyuyoruz
-                        isRemoteUpdate.current = true;
-
                         if (data.doctors) setDoctors(data.doctors);
                         if (data.shifts) setShifts(data.shifts);
                         if (data.requests) setDoctorRequests(data.requests);
-                        if (data.targets) setDoctorTargets(data.targets);
-                        if (data.gaps) setDoctorGaps(data.gaps);
-                        if (data.dailyTargets) setDailyTargets(data.dailyTargets);
-                        if (data.pairedGroups) setPairedGroups(data.pairedGroups);
+                        if (data.targets) setDoctorTargets(data.targets || {});
+                        if (data.gaps) setDoctorGaps(data.gaps || {});
+                        if (data.dailyTargets) setDailyTargets(data.dailyTargets || {});
+                        if (data.pairedGroups) setPairedGroups(data.pairedGroups || []);
+                    } else {
+                        // BU AY İÇİN VERİ YOKSA (YENİ AY)
+                        // 1. Hekim listesini KORU (boşaltma), böylece önceki ayın hekimleri kalır.
+                        // 2. Nöbetleri ve İstekleri TEMİZLE.
+                        // 3. Hedefleri (Arz/Talep) genellikle sabit kalır veya sıfırlanır. Kullanıcı "temizlensin" dediği için temizliyoruz ama hekimleri tutuyoruz.
+                        setShifts({});
+                        setDoctorRequests({});
+                        // İsteğe bağlı: Hedefleri de sıfırlayabiliriz veya koruyabiliriz. 
+                        // Kullanıcı "Tercihleri ilgili ay için olsun" dedi.
+                        setDoctorTargets({});
+                        setDoctorGaps({});
+                        setDailyTargets({});
+                        setPairedGroups([]);
                         
-                        // Kısa bir süre sonra flag'i kaldır
-                        setTimeout(() => { isRemoteUpdate.current = false; }, 100);
+                        // NOT: setDoctors'ı çağırmıyoruz, mevcut state'teki (önceki aydan kalan) hekimler duruyor.
+                        // Böylece kullanıcı yeni aya geçtiğinde hekimleri tekrar girmek zorunda kalmaz.
                     }
                 }, (error) => {
                     console.error("Veri okuma hatası:", error);
                 });
 
                 return () => unsubscribe();
-            }, [firebaseUser]);
+            }, [firebaseUser, currentDate]); // currentDate değişince listener değişir
 
-            // --- VERİ YAZMA (KAYDETME) ---
-            const saveToCloud = async (newData) => {
-                if (!firebaseUser || !window.isFirebaseAvailable || isRemoteUpdate.current) return;
+            // --- GÜVENLİ VERİ YAZMA (AYLIK) ---
+            const saveToCloud = async (overrideData = {}) => {
+                if (!firebaseUser || !window.isFirebaseAvailable) return;
 
-                const docRef = window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'nobet_system', 'main_doc');
-                // Sadece değişen alanları güncellemek için merge kullanabiliriz, ama burada toplu obje oluşturuyoruz.
-                // State'lerin güncel halini alıp yazacağız. Ancak state update'leri asenkron olduğu için
-                // bu fonksiyonun çağrıldığı yerdeki güncel veriyi kullanmak daha güvenli.
-                // Basitlik adına, useEffect ile takip edip yazmak yerine, veri değiştiren işlemlerde tetikleyeceğiz
-                // veya state değişimlerini takip eden effect kullanacağız (debounce ile).
+                isWriting.current = true;
+
+                // Hangi aya kaydedeceğiz?
+                const docId = getPeriodDocId(currentDate);
+
+                const dataToSave = {
+                    doctors, // Hekim listesi her ayın kaydında bulunsun (tarihçeli yapı)
+                    shifts,
+                    requests: doctorRequests,
+                    targets: doctorTargets,
+                    gaps: doctorGaps,
+                    dailyTargets,
+                    pairedGroups,
+                    updatedAt: new Date().toISOString(),
+                    ...overrideData
+                };
+
+                const docRef = window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'nobet_system', docId);
+                try {
+                    await window.setDoc(docRef, dataToSave, { merge: true });
+                } catch (err) {
+                    console.error("Kaydetme hatası:", err);
+                    showModal("Hata", "Veriler buluta kaydedilemedi.", "error");
+                } finally {
+                    setTimeout(() => { isWriting.current = false; }, 500);
+                }
             };
 
-            // State değişimlerini izleyip buluta yazan Effect (Debounce ile)
-            useEffect(() => {
-                // Eğer güncelleme dışarıdan geldiyse (remote), geri yazma (loop engelleme).
-                if (isRemoteUpdate.current || !firebaseUser) return;
-
-                const timeoutId = setTimeout(() => {
-                    const docRef = window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'nobet_system', 'main_doc');
-                    window.setDoc(docRef, {
-                        doctors,
-                        shifts,
-                        requests: doctorRequests,
-                        targets: doctorTargets,
-                        gaps: doctorGaps,
-                        dailyTargets,
-                        pairedGroups
-                    }, { merge: true }).catch(err => console.error("Kaydetme hatası:", err));
-                    
-                    // Ayrıca LocalStorage'a da yedekle
-                    localStorage.setItem('nobet_doctors', JSON.stringify(doctors));
-                    localStorage.setItem('nobet_shifts', JSON.stringify(shifts));
-                    localStorage.setItem('nobet_requests', JSON.stringify(doctorRequests));
-
-                }, 1000); // 1 saniye bekle (çok sık yazmayı önlemek için)
-
-                return () => clearTimeout(timeoutId);
-            }, [doctors, shifts, doctorRequests, doctorTargets, doctorGaps, dailyTargets, pairedGroups, firebaseUser]);
-
-
-            // --- DİĞER YARDIMCI FONKSİYONLAR (Aynen korundu) ---
+            // --- DİĞER YARDIMCI FONKSİYONLAR ---
             const getDaysInMonth = (date) => {
                 const year = date.getFullYear();
                 const month = date.getMonth();
@@ -359,7 +363,6 @@
 
             // Günlük hedefleri başlat
             useEffect(() => {
-                // Eğer dailyTargets boşsa doldur, doluysa elleme (Veritabanından gelmiş olabilir)
                 if (Object.keys(dailyTargets).length === 0) {
                     const initialDailyTargets = {};
                     days.forEach(day => { initialDailyTargets[day] = 2; });
@@ -383,7 +386,6 @@
                         const index = (day + watchers.length) % watchers.length; 
                         selectedWatcherName = watchers[index].name;
                     }
-
                     return { date: dateStr, dayName: dayName, doctor: selectedWatcherName, isWeekend };
                 });
                 setBlueCodeList(newList);
@@ -394,33 +396,44 @@
                 const month = currentDate.getMonth(); 
                 const dateObj = new Date(year, month, day);
                 const dayOfWeek = dateObj.getDay();
-                
                 const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
                 let isHoliday = false;
-                
                 const staticHolidays = ["1-0", "23-3", "1-4", "19-4", "15-6", "30-7", "29-9"];
                 if (staticHolidays.includes(`${day}-${month}`)) isHoliday = true;
-
                 if (year === 2025 && ((month === 2 && day >= 30) || (month === 3 && day <= 1) || (month === 5 && day >= 6 && day <= 9))) isHoliday = true;
-                
                 return { isWeekend, isHoliday, isOff: isWeekend || isHoliday };
             };
 
             const injectPrintStyles = () => {
                 const existingStyle = document.getElementById('dynamic-print-style');
                 if (existingStyle) existingStyle.remove();
-
                 const style = document.createElement('style');
                 style.id = 'dynamic-print-style';
                 
                 if (activeTab === 'bluecode') {
                     style.innerHTML = `
                         @media print { 
-                            @page { size: A4 portrait; margin: 0; }
-                            body { margin: 0; padding: 0; }
-                            #root { width: 100%; }
-                            .blue-code-container { width: 210mm !important; min-height: 297mm !important; margin: 0 !important; padding: 20mm !important; box-shadow: none !important; page-break-after: always; }
-                            .blue-code-wrapper { background-color: white !important; padding: 0 !important; display: block !important; }
+                            @page { size: A4; margin: 0; }
+                            body { margin: 0; padding: 0; background: white; }
+                            #root { display: none; }
+                            .blue-code-wrapper { 
+                                display: flex !important; 
+                                justify-content: center !important; 
+                                align-items: center !important; 
+                                height: 100vh !important; 
+                                width: 100vw !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                position: absolute;
+                                top: 0;
+                                left: 0;
+                            }
+                            .blue-code-container { 
+                                width: 190mm !important; 
+                                min-height: 280mm !important; 
+                                box-shadow: none !important; 
+                                border: none !important;
+                            }
                         }
                     `;
                 } else {
@@ -438,47 +451,33 @@
 
             const getStandardMonthlyHours = () => {
                 let workDays = 0;
-                days.forEach(day => {
-                    const status = checkDayStatus(day);
-                    if (!status.isOff) workDays++;
-                });
+                days.forEach(day => { const status = checkDayStatus(day); if (!status.isOff) workDays++; });
                 return workDays * 8;
             };
 
             const calculateDoctorStats = (doctorId) => {
-                let count24 = 0;
-                let totalWorkedHours = 0;
-                let leaveDeduction = 0;
-
+                let count24 = 0; let totalWorkedHours = 0; let leaveDeduction = 0;
                 days.forEach(day => {
                     const shift = shifts[`${doctorId}-${day}`];
                     if (shift === '24') { count24++; totalWorkedHours += 24; }
                     else if (shift === '16') totalWorkedHours += 16;
                     else if (shift === '8') totalWorkedHours += 8;
                     else if (shift === '5') totalWorkedHours += 5;
-                    
-                    if (['Yİ', 'İİ', 'R'].includes(shift)) {
-                        const status = checkDayStatus(day);
-                        if (!status.isOff) leaveDeduction += 8;
-                    }
+                    if (['Yİ', 'İİ', 'R'].includes(shift)) { const status = checkDayStatus(day); if (!status.isOff) leaveDeduction += 8; }
                 });
-
                 const standardHours = getStandardMonthlyHours();
                 const personalTarget = standardHours - leaveDeduction;
                 const extraHours = totalWorkedHours - personalTarget;
-
                 return { count24, totalWorkedHours, personalTarget, extraHours };
             };
 
             const getDailyDoctorCount = (day) => {
                 let count = 0;
-                doctors.forEach(doc => {
-                    if (shifts[`${doc.id}-${day}`] === '24') count++;
-                });
+                doctors.forEach(doc => { if (shifts[`${doc.id}-${day}`] === '24') count++; });
                 return count;
             };
 
-            // --- EXPORT FUNCTIONALITY ---
+            // --- EXPORT & RECORDING & SHARING ---
             const exportToPDF = () => { injectPrintStyles(); setTimeout(() => { window.print(); setPrintMenuOpen(false); }, 100); };
             const exportToJPEG = (targetRef) => {
                 setPrintMenuOpen(false);
@@ -525,10 +524,108 @@
                 XLSX.writeFile(wb, `Nobet_Cizelgesi_${monthNames[currentDate.getMonth()]}.xlsx`);
             };
 
+            const startRecording = async () => {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                    showModal("Hata", "Tarayıcınız ekran kaydını desteklemiyor.", "error");
+                    return;
+                }
+                try {
+                    const stream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "always" }, audio: false });
+                    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: "video/webm" });
+                    
+                    mediaRecorderRef.current.ondataavailable = (event) => {
+                        if (event.data.size > 0) recordedChunks.current.push(event.data);
+                    };
+                    
+                    mediaRecorderRef.current.onstop = () => {
+                        const blob = new Blob(recordedChunks.current, { type: "video/webm" });
+                        recordedChunks.current = [];
+                        setRecordedBlob(blob); // Paylaşım için Blob'u sakla
+                        setIsRecording(false);
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+                    
+                    stream.getVideoTracks()[0].onended = () => { if (isRecording) stopRecording(); };
+                    
+                    mediaRecorderRef.current.start();
+                    setIsRecording(true);
+                    setRecordedBlob(null); // Yeni kayıt başladığında eskiyi sil
+                } catch (err) {
+                    console.error("Ekran kaydı hatası:", err);
+                    showModal("Hata", "Ekran kaydı başlatılamadı.", "error");
+                }
+            };
+            
+            const stopRecording = () => {
+                if(mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+                    mediaRecorderRef.current.stop();
+                }
+            };
+
+            // --- WHATSAPP PAYLAŞIM FONKSİYONU ---
+            const shareVideoOnWhatsApp = async () => {
+                if (!recordedBlob) return;
+
+                const fileName = `kura-cekimi-${new Date().getTime()}.webm`;
+                const file = new File([recordedBlob], fileName, { type: "video/webm" });
+
+                // Mobil Cihazda Native Paylaşım
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: 'Kura Çekimi',
+                            text: 'Nöbet kura çekimi sonuçları ektedir.'
+                        });
+                    } catch (err) {
+                        console.error("Paylaşım hatası:", err);
+                        // Kullanıcı iptal ettiyse hata gösterme
+                        if (err.name !== 'AbortError') {
+                             showModal("Hata", "Mobil paylaşım başarısız oldu. Video indiriliyor...", "warning");
+                             // Fallback: İndirme başlat
+                             const url = URL.createObjectURL(recordedBlob);
+                             const a = document.createElement("a");
+                             document.body.appendChild(a);
+                             a.style = "display: none";
+                             a.href = url;
+                             a.download = fileName;
+                             a.click();
+                             window.URL.revokeObjectURL(url);
+                        }
+                    }
+                } else {
+                    // Masaüstü Fallback: İndir ve Modal ile Yönlendir (Popup Blocker Önlemi)
+                    const url = URL.createObjectURL(recordedBlob);
+                    const a = document.createElement("a");
+                    document.body.appendChild(a);
+                    a.style = "display: none";
+                    a.href = url;
+                    a.download = fileName;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+
+                    showModal("Video İndirildi", 
+                        <div className="flex flex-col gap-4 items-center">
+                            <p>Video başarıyla cihazınıza indirildi.</p>
+                            <p className="text-sm text-gray-500">WhatsApp Web'i açın ve indirdiğiniz dosyayı sohbete sürükleyin.</p>
+                            <a 
+                                href="https://web.whatsapp.com" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="bg-[#25D366] text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-[#128C7E] transition-all shadow-lg"
+                                onClick={closeModal}
+                            >
+                                <Icons.Share size={20} /> WhatsApp Web'i Aç
+                            </a>
+                        </div>, 
+                    "success");
+                }
+            };
+
             // --- STATE HELPERS ---
-            const changeAllTargets = (delta) => { const newTargets = {}; const defaultTarget = Math.ceil((days.length * 2) / doctors.length); doctors.forEach(doc => { const current = doctorTargets[doc.id] !== undefined ? doctorTargets[doc.id] : defaultTarget; newTargets[doc.id] = Math.max(0, current + delta); }); setDoctorTargets(newTargets); };
-            const changeAllGaps = (delta) => { const newGaps = {}; doctors.forEach(doc => { const current = doctorGaps[doc.id] !== undefined ? doctorGaps[doc.id] : 1; newGaps[doc.id] = Math.max(0, current + delta); }); setDoctorGaps(newGaps); };
-            const changeAllDailyTargets = (delta) => { const newDaily = {}; days.forEach(day => { const current = dailyTargets[day] !== undefined ? dailyTargets[day] : 2; newDaily[day] = Math.max(0, current + delta); }); setDailyTargets(newDaily); };
+            const changeAllTargets = (delta) => { const newTargets = {}; const defaultTarget = Math.ceil((days.length * 2) / doctors.length); doctors.forEach(doc => { const current = doctorTargets[doc.id] !== undefined ? doctorTargets[doc.id] : defaultTarget; newTargets[doc.id] = Math.max(0, current + delta); }); setDoctorTargets(newTargets); saveToCloud({targets: newTargets}); };
+            const changeAllGaps = (delta) => { const newGaps = {}; doctors.forEach(doc => { const current = doctorGaps[doc.id] !== undefined ? doctorGaps[doc.id] : 1; newGaps[doc.id] = Math.max(0, current + delta); }); setDoctorGaps(newGaps); saveToCloud({gaps: newGaps}); };
+            const changeAllDailyTargets = (delta) => { const newDaily = {}; days.forEach(day => { const current = dailyTargets[day] !== undefined ? dailyTargets[day] : 2; newDaily[day] = Math.max(0, current + delta); }); setDailyTargets(newDaily); saveToCloud({dailyTargets: newDaily}); };
             const getTotalSupply = () => { let total = 0; doctors.forEach(doc => { total += doctorTargets[doc.id] !== undefined ? doctorTargets[doc.id] : Math.ceil((days.length * 2) / doctors.length); }); return total; };
             const getTotalDemand = () => { let total = 0; days.forEach(day => { total += dailyTargets[day] !== undefined ? dailyTargets[day] : 2; }); return total; };
             
@@ -548,166 +645,231 @@
             };
 
             // --- DAĞITIM ALGORİTMASI ---
-            const generateSchedule = () => {
+            const confirmGeneration = () => {
                 const totalSupply = getTotalSupply();
                 const totalDemand = getTotalDemand();
-                if (Math.abs(totalSupply - totalDemand) > 5) { if(!window.confirm(`DİKKAT: Arz ve Talep arasında büyük fark var!\n\nHekimlerin Toplam Hedefi: ${totalSupply}\nGünlük İhtiyaç Toplamı: ${totalDemand}\n\nBu durum dengesiz dağılıma yol açabilir. Devam edilsin mi?`)) return; } else { if(!window.confirm("Mevcut nöbetler (İzinler ve İstemiyorum 'X' hariç) silinip yeniden dağıtılacak. Onaylıyor musunuz?")) return; }
                 
-                const daysInMonth = days.length;
-                let newShifts = { ...shifts };
-                
-                Object.keys(newShifts).forEach(key => { if (['24', '16', '8', '5'].includes(newShifts[key])) delete newShifts[key]; });
-                
-                let realTotalDemand = 0;
-                for(let d=1; d<=daysInMonth; d++) { realTotalDemand += (dailyTargets[d] !== undefined ? dailyTargets[d] : 2); }
-                
-                const targets = { ...doctorTargets };
-                const gaps = { ...doctorGaps };
-                
-                doctors.forEach(doc => { 
-                    if (targets[doc.id] === undefined) targets[doc.id] = Math.ceil(realTotalDemand / doctors.length); 
-                    if (gaps[doc.id] === undefined) gaps[doc.id] = 1; 
-                });
+                let message = "Mevcut nöbetler (İzinler ve İstemiyorum 'X' hariç) silinip yeniden dağıtılacak. Onaylıyor musunuz?";
+                let type = 'info';
 
-                let doctorCounts = {};
-                let doctorWeekendCounts = {};
-                let partialGroupMatches = new Array(pairedGroups.length).fill(0);
+                if (Math.abs(totalSupply - totalDemand) > 5) {
+                    message = `DİKKAT: Arz ve Talep arasında büyük fark var!\n\nHekimlerin Toplam Hedefi: ${totalSupply}\nGünlük İhtiyaç Toplamı: ${totalDemand}\n\nBu durum dengesiz dağılıma yol açabilir. Devam edilsin mi?`;
+                    type = 'warning';
+                }
 
-                doctors.forEach(d => {
-                    doctorCounts[d.id] = 0;
-                    doctorWeekendCounts[d.id] = 0;
-                });
+                showModal("Dağıtım Onayı", 
+                    <div className="flex flex-col gap-4">
+                        <p className="whitespace-pre-line text-left text-sm">{message}</p>
+                        <div className="flex gap-2 justify-end mt-2">
+                            <button onClick={closeModal} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium">İptal</button>
+                            <button onClick={() => { closeModal(); runAlgorithm(); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold">Başlat</button>
+                        </div>
+                    </div>,
+                type);
+            };
 
-                const distributeForDays = (dayList, isWeekendPhase) => {
-                    dayList.forEach(day => {
-                        const slotsForThisDay = dailyTargets[day] !== undefined ? dailyTargets[day] : 2;
-                        let finalSelection = [];
+            const runAlgorithm = () => {
+                try {
+                    const daysInMonth = days.length;
+                    let newShifts = { ...shifts };
+                    
+                    // Temizle
+                    Object.keys(newShifts).forEach(key => { if (['24', '16', '8', '5'].includes(newShifts[key])) delete newShifts[key]; });
+                    
+                    // Hazırlık
+                    const targets = { ...doctorTargets };
+                    const gaps = { ...doctorGaps };
+                    let realTotalDemand = 0;
+                    for(let d=1; d<=daysInMonth; d++) { realTotalDemand += (dailyTargets[d] !== undefined ? dailyTargets[d] : 2); }
 
-                        let pool = [...doctors].sort((a, b) => { 
-                            const remainingA = targets[a.id] - doctorCounts[a.id]; 
-                            const remainingB = targets[b.id] - doctorCounts[b.id]; 
-                            if (isWeekendPhase) {
-                                const wA = doctorWeekendCounts[a.id];
-                                const wB = doctorWeekendCounts[b.id];
-                                if (wA !== wB) return wA - wB; 
-                            }
-                            if (remainingA !== remainingB) return remainingB - remainingA; 
-                            return Math.random() - 0.5; 
-                        });
+                    doctors.forEach(doc => { 
+                        if (targets[doc.id] === undefined) targets[doc.id] = Math.ceil(realTotalDemand / doctors.length); 
+                        if (gaps[doc.id] === undefined) gaps[doc.id] = 1; 
+                    });
 
-                        pool = pool.filter(doc => {
-                            const existingShift = newShifts[`${doc.id}-${day}`];
-                            if (existingShift && ['Yİ', 'İİ', 'R', 'Nİ', 'X'].includes(existingShift)) return false;
-                            if (newShifts[`${doc.id}-${day}`] === '24') return false;
-                            const minGap = gaps[doc.id];
-                            for (let gap = 1; gap <= minGap; gap++) { 
-                                if (day - gap > 0) { const prevShift = newShifts[`${doc.id}-${day - gap}`]; if (prevShift && ['24', '16', '8', '5'].includes(prevShift)) return false; }
-                                if (day + gap <= daysInMonth) { const nextShift = newShifts[`${doc.id}-${day + gap}`]; if (nextShift && ['24', '16', '8', '5'].includes(nextShift)) return false; }
-                            }
-                            return true;
-                        });
+                    let doctorCounts = {};
+                    let doctorWeekendCounts = {};
+                    let partialGroupMatches = new Array(pairedGroups.length).fill(0);
 
-                        while (finalSelection.length < slotsForThisDay && pool.length > 0) {
-                            let bestIndex = -1;
-                            for(let i=0; i<pool.length; i++) {
-                                const cand = pool[i];
-                                const candidatesNeedShifts = pool.filter(p => doctorCounts[p.id] < targets[p.id]);
-                                const slotsNeeded = slotsForThisDay - finalSelection.length;
-                                if (doctorCounts[cand.id] >= targets[cand.id] && candidatesNeedShifts.length >= slotsNeeded) continue; 
-                                const groupIndex = pairedGroups.findIndex(g => g.ids.includes(cand.id));
-                                const group = groupIndex !== -1 ? pairedGroups[groupIndex] : null;
-                                let sizeToAdd = 1;
-                                if (group) {
-                                    const isStrict = group.type === 'strict';
-                                    const isPartial = group.type === 'partial';
-                                    const partnerIds = group.ids.filter(id => id !== cand.id);
-                                    const validPartners = partnerIds.filter(pid => pool.some(p => p.id === pid) && !finalSelection.some(f => f.id === pid));
-                                    if (isStrict) {
-                                        const allPartnersAvailableOrSelected = partnerIds.every(pid => pool.some(p => p.id === pid) || finalSelection.some(f => f.id === pid));
-                                        if (!allPartnersAvailableOrSelected) continue; 
-                                        sizeToAdd = 1 + validPartners.length;
-                                    } else if (isPartial) {
-                                        if (partialGroupMatches[groupIndex] < 3) {
-                                            if (finalSelection.length + 1 + validPartners.length <= slotsForThisDay) sizeToAdd = 1 + validPartners.length;
-                                            else sizeToAdd = 1; 
-                                        } else sizeToAdd = 1;
-                                    }
+                    doctors.forEach(d => { doctorCounts[d.id] = 0; doctorWeekendCounts[d.id] = 0; });
+
+                    const distributeForDays = (dayList, isWeekendPhase) => {
+                        dayList.forEach(day => {
+                            const slotsForThisDay = dailyTargets[day] !== undefined ? dailyTargets[day] : 2;
+                            let finalSelection = [];
+
+                            let pool = [...doctors].sort((a, b) => { 
+                                const remainingA = targets[a.id] - doctorCounts[a.id]; 
+                                const remainingB = targets[b.id] - doctorCounts[b.id]; 
+                                if (isWeekendPhase) {
+                                    const wA = doctorWeekendCounts[a.id];
+                                    const wB = doctorWeekendCounts[b.id];
+                                    if (wA !== wB) return wA - wB; 
                                 }
-                                if (finalSelection.length + sizeToAdd <= slotsForThisDay) { bestIndex = i; break; }
-                            }
-                            if (bestIndex === -1 && pool.length > 0) bestIndex = 0; 
-                            if (bestIndex !== -1) {
-                                const pick = pool[bestIndex];
-                                const groupIndex = pairedGroups.findIndex(g => g.ids.includes(pick.id));
-                                const group = groupIndex !== -1 ? pairedGroups[groupIndex] : null;
-                                finalSelection.push(pick);
-                                pool = pool.filter(p => p.id !== pick.id); 
-                                if (group) {
-                                    const partnerIds = group.ids.filter(id => id !== pick.id);
-                                    const availablePartners = partnerIds.map(pid => doctors.find(d => d.id === pid)).filter(d => d && pool.some(p => p.id === d.id));
-                                    if (group.type === 'strict') {
-                                        availablePartners.forEach(p => { finalSelection.push(p); pool = pool.filter(x => x.id !== p.id); });
-                                    } else if (group.type === 'partial') {
-                                        if (partialGroupMatches[groupIndex] < 3) {
-                                            if (finalSelection.length + availablePartners.length <= slotsForThisDay) {
-                                                availablePartners.forEach(p => { finalSelection.push(p); pool = pool.filter(x => x.id !== p.id); });
+                                if (remainingA !== remainingB) return remainingB - remainingA; 
+                                return Math.random() - 0.5; 
+                            });
+
+                            pool = pool.filter(doc => {
+                                const existingShift = newShifts[`${doc.id}-${day}`];
+                                if (existingShift && ['Yİ', 'İİ', 'R', 'Nİ', 'X'].includes(existingShift)) return false;
+                                if (newShifts[`${doc.id}-${day}`] === '24') return false;
+                                const minGap = gaps[doc.id];
+                                for (let gap = 1; gap <= minGap; gap++) { 
+                                    if (day - gap > 0) { const prevShift = newShifts[`${doc.id}-${day - gap}`]; if (prevShift && ['24', '16', '8', '5'].includes(prevShift)) return false; }
+                                    if (day + gap <= daysInMonth) { const nextShift = newShifts[`${doc.id}-${day + gap}`]; if (nextShift && ['24', '16', '8', '5'].includes(nextShift)) return false; }
+                                }
+                                return true;
+                            });
+
+                            while (finalSelection.length < slotsForThisDay && pool.length > 0) {
+                                let bestIndex = -1;
+                                for(let i=0; i<pool.length; i++) {
+                                    const cand = pool[i];
+                                    const candidatesNeedShifts = pool.filter(p => doctorCounts[p.id] < targets[p.id]);
+                                    const slotsNeeded = slotsForThisDay - finalSelection.length;
+                                    if (doctorCounts[cand.id] >= targets[cand.id] && candidatesNeedShifts.length >= slotsNeeded) continue; 
+                                    const groupIndex = pairedGroups.findIndex(g => g.ids.includes(cand.id));
+                                    const group = groupIndex !== -1 ? pairedGroups[groupIndex] : null;
+                                    let sizeToAdd = 1;
+                                    if (group) {
+                                        const isStrict = group.type === 'strict';
+                                        const isPartial = group.type === 'partial';
+                                        const partnerIds = group.ids.filter(id => id !== cand.id);
+                                        const validPartners = partnerIds.filter(pid => pool.some(p => p.id === pid) && !finalSelection.some(f => f.id === pid));
+                                        if (isStrict) {
+                                            const allPartnersAvailableOrSelected = partnerIds.every(pid => pool.some(p => p.id === pid) || finalSelection.some(f => f.id === pid));
+                                            if (!allPartnersAvailableOrSelected) continue; 
+                                            sizeToAdd = 1 + validPartners.length;
+                                        } else if (isPartial) {
+                                            if (partialGroupMatches[groupIndex] < 3) {
+                                                if (finalSelection.length + 1 + validPartners.length <= slotsForThisDay) sizeToAdd = 1 + validPartners.length;
+                                                else sizeToAdd = 1; 
+                                            } else sizeToAdd = 1;
+                                        }
+                                    }
+                                    if (finalSelection.length + sizeToAdd <= slotsForThisDay) { bestIndex = i; break; }
+                                }
+                                if (bestIndex === -1 && pool.length > 0) bestIndex = 0; 
+                                if (bestIndex !== -1) {
+                                    const pick = pool[bestIndex];
+                                    const groupIndex = pairedGroups.findIndex(g => g.ids.includes(pick.id));
+                                    const group = groupIndex !== -1 ? pairedGroups[groupIndex] : null;
+                                    finalSelection.push(pick);
+                                    pool = pool.filter(p => p.id !== pick.id); 
+                                    if (group) {
+                                        const partnerIds = group.ids.filter(id => id !== pick.id);
+                                        const availablePartners = partnerIds.map(pid => doctors.find(d => d.id === pid)).filter(d => d && pool.some(p => p.id === d.id));
+                                        if (group.type === 'strict') {
+                                            availablePartners.forEach(p => { finalSelection.push(p); pool = pool.filter(x => x.id !== p.id); });
+                                        } else if (group.type === 'partial') {
+                                            if (partialGroupMatches[groupIndex] < 3) {
+                                                if (finalSelection.length + availablePartners.length <= slotsForThisDay) {
+                                                    availablePartners.forEach(p => { finalSelection.push(p); pool = pool.filter(x => x.id !== p.id); });
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
-                        finalSelection.forEach(doc => { 
-                            newShifts[`${doc.id}-${day}`] = '24'; 
-                            doctorCounts[doc.id]++; 
-                            if (isWeekendPhase) doctorWeekendCounts[doc.id]++;
+                            finalSelection.forEach(doc => { 
+                                newShifts[`${doc.id}-${day}`] = '24'; 
+                                doctorCounts[doc.id]++; 
+                                if (isWeekendPhase) doctorWeekendCounts[doc.id]++;
+                            });
+                            pairedGroups.forEach((group, idx) => {
+                                if (group.type === 'partial') {
+                                    const membersInShift = group.ids.filter(gid => finalSelection.some(f => f.id === gid));
+                                    if (membersInShift.length >= 2) partialGroupMatches[idx]++;
+                                }
+                            });
                         });
-                        pairedGroups.forEach((group, idx) => {
-                            if (group.type === 'partial') {
-                                const membersInShift = group.ids.filter(gid => finalSelection.some(f => f.id === gid));
-                                if (membersInShift.length >= 2) partialGroupMatches[idx]++;
-                            }
-                        });
-                    });
-                };
+                    };
 
-                const weekendDays = days.filter(d => checkDayStatus(d).isOff);
-                distributeForDays(weekendDays, true);
-                const weekDays = days.filter(d => !checkDayStatus(d).isOff);
-                distributeForDays(weekDays, false);
-                setShifts(newShifts);
-                alert("Nöbetler dağıtıldı!");
-                setActiveTab('calendar');
+                    const weekendDays = days.filter(d => checkDayStatus(d).isOff);
+                    distributeForDays(weekendDays, true);
+                    const weekDays = days.filter(d => !checkDayStatus(d).isOff);
+                    distributeForDays(weekDays, false);
+                    setShifts(newShifts);
+                    saveToCloud({shifts: newShifts});
+                    showModal("Başarılı", "Nöbetler başarıyla dağıtıldı!", "success");
+                    setActiveTab('calendar');
+                } catch (err) {
+                    console.error("Dağıtım hatası:", err);
+                    showModal("Hata", "Dağıtım sırasında bir hata oluştu: " + err.message, "error");
+                }
             };
 
             // --- GRUPLAMA FONKSİYONLARI ---
             const [selectedForGroup, setSelectedForGroup] = useState([]);
             const [groupType, setGroupType] = useState('strict'); 
             const toggleSelectForGroup = (id) => { if (selectedForGroup.includes(id)) setSelectedForGroup(prev => prev.filter(x => x !== id)); else setSelectedForGroup(prev => [...prev, id]); };
-            const createGroup = () => { if (selectedForGroup.length < 2) return alert("En az 2 hekim seçmelisiniz."); setPairedGroups([...pairedGroups, { ids: selectedForGroup, type: groupType }]); setSelectedForGroup([]); };
-            const removeGroup = (index) => { setPairedGroups(pairedGroups.filter((_, i) => i !== index)); };
+            const createGroup = () => { if (selectedForGroup.length < 2) return showModal("Hata", "En az 2 hekim seçmelisiniz.", "error"); const newGroups = [...pairedGroups, { ids: selectedForGroup, type: groupType }]; setPairedGroups(newGroups); setSelectedForGroup([]); saveToCloud({pairedGroups: newGroups}); };
+            const removeGroup = (index) => { const newGroups = pairedGroups.filter((_, i) => i !== index); setPairedGroups(newGroups); saveToCloud({pairedGroups: newGroups}); };
 
-            // --- GİRİŞ/ÇIKIŞ MANTIĞI ---
+            // --- GİRİŞ/ÇIKIŞ MANTIĞI & MODAL HANDLERS ---
+            const showModal = (title, content, type = 'info', onConfirm = null) => {
+                setModalConfig({ isOpen: true, title, content, type, onConfirm });
+            };
+            
+            const closeModal = () => {
+                setModalConfig(prev => ({ ...prev, isOpen: false }));
+            };
+
             const handleAdminLogin = () => {
-                const password = prompt("Yönetici şifresini giriniz:");
-                if (password === "Me121314") {
-                    setUserRole('admin');
-                    setLoggedInDoctorId(null);
-                    alert("Yönetici girişi başarılı.");
-                } else if (password !== null) alert("Hatalı şifre!");
+                let password = "";
+                const confirmLogin = () => {
+                    if (password === "Me121314") {
+                        setUserRole('admin');
+                        setLoggedInDoctorId(null);
+                        showModal("Başarılı", "Yönetici girişi yapıldı.", "success");
+                    } else {
+                        showModal("Hata", "Hatalı şifre!", "error");
+                    }
+                };
+
+                showModal("Yönetici Girişi", 
+                    <div className="flex flex-col gap-3">
+                        <input 
+                            type="password" 
+                            placeholder="Şifre Giriniz" 
+                            className="border p-2 rounded w-full" 
+                            onChange={(e) => password = e.target.value}
+                            onKeyDown={(e) => e.key === 'Enter' && confirmLogin()}
+                            autoFocus
+                        />
+                        <button onClick={confirmLogin} className="bg-blue-600 text-white p-2 rounded">Giriş Yap</button>
+                    </div>, 
+                'info');
             };
 
             const handleDoctorLogin = () => {
-                const inputTc = prompt("TC Kimlik Numaranızı giriniz:");
-                if (inputTc) {
+                let inputTc = "";
+                const confirmLogin = () => {
                     const cleanTc = inputTc.trim();
                     const doctor = doctors.find(d => d.tc === cleanTc);
                     if (doctor) {
                         setUserRole('doctor');
                         setLoggedInDoctorId(doctor.id);
-                        alert(`Hoşgeldiniz, ${doctor.name}.`);
-                    } else alert("Bu TC Kimlik Numarası ile kayıtlı hekim bulunamadı.");
-                }
+                        showModal("Hoşgeldiniz", `Sayın ${doctor.name}, sisteme giriş yaptınız.`, "success");
+                    } else {
+                        showModal("Hata", "Bu TC ile kayıtlı hekim bulunamadı.", "error");
+                    }
+                };
+
+                showModal("Hekim Girişi", 
+                    <div className="flex flex-col gap-3">
+                        <input 
+                            type="text" 
+                            placeholder="TC Kimlik No Giriniz" 
+                            className="border p-2 rounded w-full" 
+                            onChange={(e) => inputTc = e.target.value} 
+                            onKeyDown={(e) => e.key === 'Enter' && confirmLogin()}
+                            autoFocus
+                        />
+                        <button onClick={confirmLogin} className="bg-indigo-600 text-white p-2 rounded">Giriş Yap</button>
+                    </div>, 
+                'info');
             };
 
             const handleLogout = () => { setUserRole('guest'); setLoggedInDoctorId(null); setActiveTab('calendar'); };
@@ -716,23 +878,25 @@
             const handleCellClick = (docId, day) => {
                 const key = `${docId}-${day}`;
                 const currentShift = shifts[key];
+                
                 if (userRole === 'admin') {
                     const newS = {...shifts};
                     if (newS[key] === selectedShiftType) delete newS[key]; else newS[key] = selectedShiftType;
                     setShifts(newS);
+                    saveToCloud({shifts: newS}); // ANINDA KAYDET
                 } else if (userRole === 'doctor' && docId === loggedInDoctorId) {
                     const newS = {...shifts};
-                    if (!currentShift) { newS[key] = 'X'; setShifts(newS); }
-                    else if (currentShift === 'X') { delete newS[key]; setShifts(newS); }
-                    else alert("Yöneticinin atadığı nöbeti değiştiremezsiniz.");
+                    if (!currentShift) { newS[key] = 'X'; setShifts(newS); saveToCloud({shifts: newS}); }
+                    else if (currentShift === 'X') { delete newS[key]; setShifts(newS); saveToCloud({shifts: newS}); }
+                    else showModal("Uyarı", "Yöneticinin atadığı nöbeti değiştiremezsiniz.", "error");
                 }
             };
 
             // --- KURA İŞLEMLERİ ---
             const toggleLotteryParticipant = (id) => { if (lotteryParticipants.includes(id)) setLotteryParticipants(prev => prev.filter(p => p !== id)); else setLotteryParticipants(prev => [...prev, id]); };
             const handleLotteryDraw = () => {
-                if (lotteryParticipants.length === 0) return alert("Lütfen en az bir kişi seçin.");
-                if (lotteryWinnerCount > lotteryParticipants.length) return alert("Seçilecek kişi sayısı katılımcı sayısından fazla olamaz.");
+                if (lotteryParticipants.length === 0) return showModal("Hata", "Lütfen en az bir kişi seçin.", "error");
+                if (lotteryWinnerCount > lotteryParticipants.length) return showModal("Hata", "Seçilecek kişi sayısı katılımcı sayısından fazla olamaz.", "error");
                 setIsDrawing(true); setLotteryResults(null);
                 setTimeout(() => {
                     const shuffled = [...lotteryParticipants].sort(() => 0.5 - Math.random());
@@ -745,7 +909,10 @@
 
             return (
                 <div className="min-h-screen bg-gray-50 font-sans text-sm pb-10">
-                    
+                    <Modal isOpen={modalConfig.isOpen} onClose={closeModal} title={modalConfig.title} type={modalConfig.type}>
+                        {modalConfig.content}
+                    </Modal>
+
                     {/* ÜST MENÜ */}
                     <div className="bg-white shadow-sm border-b sticky top-0 z-50 print:hidden">
                         <div className="max-w-7xl mx-auto px-4 py-3">
@@ -756,23 +923,25 @@
                                         <h1 className="text-xl font-bold text-gray-800">Akıllı Nöbet Çizelgesi</h1>
                                         <div className="flex items-center gap-2 text-xs text-gray-500">
                                             {isFirebaseConnected ? (
-                                                <span className="text-green-600 flex items-center gap-1"><Icons.Cloud size={12}/> Online (Senkronize)</span>
+                                                <span className="text-green-600 flex items-center gap-1"><Icons.Cloud size={12}/> Online</span>
                                             ) : (
-                                                <span className="text-gray-400 flex items-center gap-1"><Icons.Cloud size={12}/> Offline (Yerel)</span>
+                                                <span className="text-gray-400 flex items-center gap-1"><Icons.Cloud size={12}/> Offline</span>
                                             )}
                                             <span className="text-gray-300">|</span>
-                                            {userRole === 'admin' && <span className="text-green-600 flex items-center gap-1"><Icons.Unlock size={12}/> Yönetici Modu</span>}
-                                            {userRole === 'doctor' && <span className="text-blue-600 flex items-center gap-1"><Icons.UserCheck size={12}/> Hekim Modu: {doctors.find(d => d.id === loggedInDoctorId)?.name}</span>}
-                                            {userRole === 'guest' && <span className="text-orange-500 flex items-center gap-1"><Icons.Lock size={12}/> İzleme Modu</span>}
+                                            {userRole === 'admin' && <span className="text-green-600 flex items-center gap-1"><Icons.Unlock size={12}/> Yönetici</span>}
+                                            {userRole === 'doctor' && <span className="text-blue-600 flex items-center gap-1"><Icons.UserCheck size={12}/> Hekim: {doctors.find(d => d.id === loggedInDoctorId)?.name}</span>}
+                                            {userRole === 'guest' && <span className="text-orange-500 flex items-center gap-1"><Icons.Lock size={12}/> Misafir</span>}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="flex bg-gray-100 p-1 rounded-lg items-center">
                                     <button onClick={() => setActiveTab('calendar')} className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === 'calendar' ? 'bg-white shadow text-blue-600 font-bold' : 'text-gray-500 hover:text-gray-700'}`}><Icons.LayoutList /> Çizelge</button>
                                     {userRole === 'admin' && (
-                                        <button onClick={() => setActiveTab('generator')} className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === 'generator' ? 'bg-white shadow text-purple-600 font-bold' : 'text-gray-500 hover:text-gray-700'}`}><Icons.BrainCircuit /> Otomatik Dağıtıcı (AI)</button>
+                                        <>
+                                            <button onClick={() => setActiveTab('generator')} className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === 'generator' ? 'bg-white shadow text-purple-600 font-bold' : 'text-gray-500 hover:text-gray-700'}`}><Icons.BrainCircuit /> Otomatik Dağıtıcı</button>
+                                            <button onClick={() => setActiveTab('lottery')} className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === 'lottery' ? 'bg-white shadow text-pink-600 font-bold' : 'text-gray-500 hover:text-gray-700'}`}><Icons.Dices /> Kura Çek</button>
+                                        </>
                                     )}
-                                    <button onClick={() => setActiveTab('lottery')} className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === 'lottery' ? 'bg-white shadow text-pink-600 font-bold' : 'text-gray-500 hover:text-gray-700'}`}><Icons.Dices /> Kura Çek</button>
                                     <button onClick={() => setActiveTab('bluecode')} className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === 'bluecode' ? 'bg-white shadow text-red-600 font-bold' : 'text-gray-500 hover:text-gray-700'}`}><Icons.Activity /> Mavi Kod</button>
                                 </div>
                                 <div className="flex gap-2">
@@ -827,10 +996,12 @@
                                             <button onClick={() => {
                                                 const newId = doctors.length > 0 ? Math.max(...doctors.map(d => d.id)) + 1 : 1;
                                                 const newTc = Math.floor(Math.random() * 10000000000 + 10000000000).toString(); // Placeholder TC
-                                                setDoctors([...doctors, { id: newId, name: `Yeni Hekim ${newId}`, tc: newTc }]);
-                                                alert(`Yeni hekim eklendi. Geçici TC: ${newTc}. Lütfen TC'yi güncelleyin.`);
+                                                const newDocs = [...doctors, { id: newId, name: `Yeni Hekim ${newId}`, tc: newTc }];
+                                                setDoctors(newDocs);
+                                                saveToCloud({doctors: newDocs});
+                                                showModal("Bilgi", `Yeni hekim eklendi. Geçici TC: ${newTc}.`, "info");
                                             }} className="bg-green-100 text-green-700 px-3 py-1 rounded flex items-center gap-1 hover:bg-green-200"><Icons.UserPlus /> Ekle</button>
-                                            <button onClick={() => {if(confirm('Tüm nöbetler silinsin mi?')) setShifts({})}} className="bg-red-100 text-red-700 px-3 py-1 rounded flex items-center gap-1 hover:bg-red-200"><Icons.Trash2 /> Temizle</button>
+                                            <button onClick={() => {if(confirm('BU AYIN tüm nöbetlerini silmek istediğinize emin misiniz?')) { setShifts({}); saveToCloud({shifts: {}}); }}} className="bg-red-100 text-red-700 px-3 py-1 rounded flex items-center gap-1 hover:bg-red-200"><Icons.Trash2 /> Temizle</button>
                                         </>
                                     )}
                                     
@@ -887,14 +1058,14 @@
                                                             <span className="text-gray-400 text-xs w-4">{index + 1}</span>
                                                             {userRole === 'admin' ? (
                                                                 <div className="flex flex-col flex-1">
-                                                                    <input type="text" value={doctor.name} onChange={(e) => { const newDocs = [...doctors]; newDocs[index].name = e.target.value; setDoctors(newDocs); }} className="w-full bg-transparent border-none outline-none focus:ring-1 focus:ring-blue-300 rounded px-1 font-medium text-gray-800 truncate" />
-                                                                    <input type="text" value={doctor.tc || ''} placeholder="TCKN" onChange={(e) => { const newDocs = [...doctors]; newDocs[index].tc = e.target.value; setDoctors(newDocs); }} className="w-full text-[10px] text-gray-400 bg-transparent border-none outline-none focus:ring-1 focus:ring-blue-300 rounded px-1" />
+                                                                    <input type="text" value={doctor.name} onChange={(e) => { const newDocs = [...doctors]; newDocs[index].name = e.target.value; setDoctors(newDocs); saveToCloud({doctors: newDocs}); }} className="w-full bg-transparent border-none outline-none focus:ring-1 focus:ring-blue-300 rounded px-1 font-medium text-gray-800 truncate" />
+                                                                    <input type="text" value={doctor.tc || ''} placeholder="TCKN" onChange={(e) => { const newDocs = [...doctors]; newDocs[index].tc = e.target.value; setDoctors(newDocs); saveToCloud({doctors: newDocs}); }} className="w-full text-[10px] text-gray-400 bg-transparent border-none outline-none focus:ring-1 focus:ring-blue-300 rounded px-1" />
                                                                 </div>
                                                             ) : (
                                                                 <span className={`flex-1 px-1 font-medium truncate ${isMe ? 'text-blue-700 font-bold' : 'text-gray-800'}`}>{doctor.name}</span>
                                                             )}
                                                             {userRole === 'admin' && (
-                                                                <button onClick={() => { if(confirm('Hekim silinsin mi?')) setDoctors(doctors.filter(d => d.id !== doctor.id)); }} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-1 print:hidden"><Icons.X /></button>
+                                                                <button onClick={() => { if(confirm('Hekim silinsin mi?')) { const newDocs = doctors.filter(d => d.id !== doctor.id); setDoctors(newDocs); saveToCloud({doctors: newDocs}); }}} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-1 print:hidden"><Icons.X /></button>
                                                             )}
                                                         </div>
                                                     </td>
@@ -933,7 +1104,7 @@
                                     Nöbet & İzin İstekleri
                                 </h3>
 
-                                {/* Hekim Modu: Sadece kendi isteğini yazar */}
+                                {/* Hekim Modu */}
                                 {userRole === 'doctor' && loggedInDoctorId && (
                                     <div className="space-y-3">
                                         <label className="block text-sm font-medium text-gray-700">
@@ -941,7 +1112,11 @@
                                         </label>
                                         <textarea
                                             value={doctorRequests[loggedInDoctorId] || ''}
-                                            onChange={(e) => setDoctorRequests(prev => ({...prev, [loggedInDoctorId]: e.target.value}))}
+                                            onChange={(e) => {
+                                                const newReqs = {...doctorRequests, [loggedInDoctorId]: e.target.value};
+                                                setDoctorRequests(newReqs);
+                                                saveToCloud({requests: newReqs});
+                                            }}
                                             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none h-24 resize-none"
                                             placeholder="Örn: 15-20 arası yıllık izin kullanmak istiyorum..."
                                         />
@@ -949,7 +1124,7 @@
                                     </div>
                                 )}
 
-                                {/* Yönetici Modu: Tüm istekleri görür */}
+                                {/* Yönetici Modu */}
                                 {userRole === 'admin' && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {doctors.map(doc => {
@@ -965,6 +1140,7 @@
                                                                 const newReqs = {...doctorRequests};
                                                                 delete newReqs[doc.id];
                                                                 setDoctorRequests(newReqs);
+                                                                saveToCloud({requests: newReqs});
                                                             }
                                                         }}
                                                         className="absolute top-2 right-2 text-red-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -980,13 +1156,6 @@
                                         )}
                                     </div>
                                 )}
-
-                                {/* Misafir Modu */}
-                                {userRole === 'guest' && (
-                                    <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-300 text-gray-500">
-                                        <p>İstek girmek için <span className="font-bold text-indigo-600">Hekim Girişi</span> yapmalısınız.</p>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     )}
@@ -994,8 +1163,8 @@
                     {/* --- 2. SEKME: OTOMATİK DAĞITICI --- */}
                     {activeTab === 'generator' && (
                         <div className="max-w-7xl mx-auto p-4 animate-in slide-in-from-right-4 duration-300">
-                            {/* Otomatik Dağıtıcı Paneli */}
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                             {/* Otomatik Dağıtıcı Paneli */}
+                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                 {/* SOL: HEKİM AYARLARI */}
                                 <div className="space-y-4">
                                     <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-100 h-full"><div className="flex justify-between items-center mb-4"><h3 className="text-md font-bold text-gray-800 flex items-center gap-2"><div className="bg-blue-100 p-1.5 rounded text-blue-600"><Icons.BrainCircuit /></div> Kişisel Hedefler (Arz)</h3><div className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 font-medium">Toplam: <span className="text-blue-600 font-bold">{getTotalSupply()}</span></div></div><div className="max-h-[500px] overflow-y-auto pr-2 space-y-2"><div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-gray-500 px-1 mb-1 items-center"><div className="col-span-4">Hekim (H.İçi/H.Sonu)</div><div className="col-span-4 flex justify-center items-center gap-1"><button onClick={() => changeAllTargets(-1)} className="w-4 h-4 bg-gray-200 rounded flex items-center justify-center text-[9px] hover:bg-gray-300">-</button><span>Hedef</span><button onClick={() => changeAllTargets(1)} className="w-4 h-4 bg-gray-200 rounded flex items-center justify-center text-[9px] hover:bg-gray-300">+</button></div><div className="col-span-4 flex justify-center items-center gap-1"><button onClick={() => changeAllGaps(-1)} className="w-4 h-4 bg-gray-200 rounded flex items-center justify-center text-[9px] hover:bg-gray-300">-</button><span>Boşluk</span><button onClick={() => changeAllGaps(1)} className="w-4 h-4 bg-gray-200 rounded flex items-center justify-center text-[9px] hover:bg-gray-300">+</button></div></div>{doctors.map(doc => { 
@@ -1008,12 +1177,12 @@
                                                 if (isWeekend) weekendCount++; else weekdayCount++;
                                             }
                                         });
-                                        return (<div key={doc.id} className="grid grid-cols-12 gap-1 items-center bg-gray-50 p-2 rounded-lg border hover:bg-gray-100 transition-colors"><div className="col-span-4 flex flex-col"><span className="font-medium truncate text-xs">{doc.name}</span><span className="text-[9px] text-gray-500 font-mono flex gap-1">HI:<span className="text-blue-600 font-bold">{weekdayCount}</span> HS:<span className="text-orange-600 font-bold">{weekendCount}</span></span></div><div className="col-span-4 flex items-center justify-center gap-1"><button onClick={() => setDoctorTargets({...doctorTargets, [doc.id]: Math.max(0, currentTarget - 1)})} className="w-5 h-5 bg-white border rounded hover:bg-red-50 text-red-600 font-bold">-</button><span className="w-6 text-center font-bold text-blue-700">{currentTarget}</span><button onClick={() => setDoctorTargets({...doctorTargets, [doc.id]: currentTarget + 1})} className="w-5 h-5 bg-white border rounded hover:bg-green-50 text-green-600 font-bold">+</button></div><div className="col-span-4 flex items-center justify-center gap-1"><button onClick={() => setDoctorGaps({...doctorGaps, [doc.id]: Math.max(0, currentGap - 1)})} className="w-5 h-5 bg-white border rounded hover:bg-gray-200">-</button><span className="w-6 text-center font-medium text-gray-700 text-xs">{currentGap}</span><button onClick={() => setDoctorGaps({...doctorGaps, [doc.id]: currentGap + 1})} className="w-5 h-5 bg-white border rounded hover:bg-gray-200">+</button></div></div>); 
+                                        return (<div key={doc.id} className="grid grid-cols-12 gap-1 items-center bg-gray-50 p-2 rounded-lg border hover:bg-gray-100 transition-colors"><div className="col-span-4 flex flex-col"><span className="font-medium truncate text-xs">{doc.name}</span><span className="text-[9px] text-gray-500 font-mono flex gap-1">HI:<span className="text-blue-600 font-bold">{weekdayCount}</span> HS:<span className="text-orange-600 font-bold">{weekendCount}</span></span></div><div className="col-span-4 flex items-center justify-center gap-1"><button onClick={() => { const val = Math.max(0, currentTarget - 1); setDoctorTargets({...doctorTargets, [doc.id]: val}); saveToCloud({targets: {...doctorTargets, [doc.id]: val}}); }} className="w-5 h-5 bg-white border rounded hover:bg-red-50 text-red-600 font-bold">-</button><span className="w-6 text-center font-bold text-blue-700">{currentTarget}</span><button onClick={() => { const val = currentTarget + 1; setDoctorTargets({...doctorTargets, [doc.id]: val}); saveToCloud({targets: {...doctorTargets, [doc.id]: val}}); }} className="w-5 h-5 bg-white border rounded hover:bg-green-50 text-green-600 font-bold">+</button></div><div className="col-span-4 flex items-center justify-center gap-1"><button onClick={() => { const val = Math.max(0, currentGap - 1); setDoctorGaps({...doctorGaps, [doc.id]: val}); saveToCloud({gaps: {...doctorGaps, [doc.id]: val}}); }} className="w-5 h-5 bg-white border rounded hover:bg-gray-200">-</button><span className="w-6 text-center font-medium text-gray-700 text-xs">{currentGap}</span><button onClick={() => { const val = currentGap + 1; setDoctorGaps({...doctorGaps, [doc.id]: val}); saveToCloud({gaps: {...doctorGaps, [doc.id]: val}}); }} className="w-5 h-5 bg-white border rounded hover:bg-gray-200">+</button></div></div>); 
                                     })}</div></div>
                                 </div>
                                 {/* ORTA: GÜNLÜK HEDEFLER */}
                                 <div className="space-y-4">
-                                    <div className="bg-white p-4 rounded-xl shadow-sm border border-purple-100 h-full flex flex-col"><div className="flex justify-between items-center mb-4"><h3 className="text-md font-bold text-gray-800 flex items-center gap-2"><div className="bg-purple-100 p-1.5 rounded text-purple-600"><Icons.LayoutList /></div> Günlük İhtiyaç (Talep)</h3><div className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 font-medium">Toplam: <span className="text-purple-600 font-bold">{getTotalDemand()}</span></div></div><div className="bg-purple-50 p-2 rounded text-[10px] text-purple-800 mb-2 border border-purple-200 flex justify-between items-center"><span>Tüm Günler:</span><div className="flex gap-1"><button onClick={() => changeAllDailyTargets(-1)} className="px-2 py-0.5 bg-white rounded border hover:bg-purple-100 font-bold">-</button><button onClick={() => changeAllDailyTargets(1)} className="px-2 py-0.5 bg-white rounded border hover:bg-purple-100 font-bold">+</button></div></div><div className="grid grid-cols-3 gap-2 overflow-y-auto pr-1 flex-1 content-start">{days.map(day => { const status = checkDayStatus(day); const target = dailyTargets[day] !== undefined ? dailyTargets[day] : 2; return (<div key={day} className={`flex flex-col items-center p-2 rounded border ${status.isOff ? 'bg-orange-50 border-orange-100' : 'bg-gray-50 border-gray-100'}`}><span className={`text-[10px] font-bold mb-1 ${status.isOff ? 'text-orange-600' : 'text-gray-500'}`}>{day} {monthNames[currentDate.getMonth()].slice(0,3)}</span><div className="flex items-center gap-1"><button onClick={() => setDailyTargets({...dailyTargets, [day]: Math.max(0, target - 1)})} className="w-5 h-5 bg-white border rounded hover:bg-gray-100">-</button><span className="font-bold text-gray-700 w-4 text-center">{target}</span><button onClick={() => setDailyTargets({...dailyTargets, [day]: target + 1})} className="w-5 h-5 bg-white border rounded hover:bg-gray-100">+</button></div></div>) })}</div></div>
+                                    <div className="bg-white p-4 rounded-xl shadow-sm border border-purple-100 h-full flex flex-col"><div className="flex justify-between items-center mb-4"><h3 className="text-md font-bold text-gray-800 flex items-center gap-2"><div className="bg-purple-100 p-1.5 rounded text-purple-600"><Icons.LayoutList /></div> Günlük İhtiyaç (Talep)</h3><div className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 font-medium">Toplam: <span className="text-purple-600 font-bold">{getTotalDemand()}</span></div></div><div className="bg-purple-50 p-2 rounded text-[10px] text-purple-800 mb-2 border border-purple-200 flex justify-between items-center"><span>Tüm Günler:</span><div className="flex gap-1"><button onClick={() => changeAllDailyTargets(-1)} className="px-2 py-0.5 bg-white rounded border hover:bg-purple-100 font-bold">-</button><button onClick={() => changeAllDailyTargets(1)} className="px-2 py-0.5 bg-white rounded border hover:bg-purple-100 font-bold">+</button></div></div><div className="grid grid-cols-3 gap-2 overflow-y-auto pr-1 flex-1 content-start">{days.map(day => { const status = checkDayStatus(day); const target = dailyTargets[day] !== undefined ? dailyTargets[day] : 2; return (<div key={day} className={`flex flex-col items-center p-2 rounded border ${status.isOff ? 'bg-orange-50 border-orange-100' : 'bg-gray-50 border-gray-100'}`}><span className={`text-[10px] font-bold mb-1 ${status.isOff ? 'text-orange-600' : 'text-gray-500'}`}>{day} {monthNames[currentDate.getMonth()].slice(0,3)}</span><div className="flex items-center gap-1"><button onClick={() => { const val = Math.max(0, target - 1); setDailyTargets({...dailyTargets, [day]: val}); saveToCloud({dailyTargets: {...dailyTargets, [day]: val}}); }} className="w-5 h-5 bg-white border rounded hover:bg-gray-100">-</button><span className="font-bold text-gray-700 w-4 text-center">{target}</span><button onClick={() => { const val = target + 1; setDailyTargets({...dailyTargets, [day]: val}); saveToCloud({dailyTargets: {...dailyTargets, [day]: val}}); }} className="w-5 h-5 bg-white border rounded hover:bg-gray-100">+</button></div></div>) })}</div></div>
                                 </div>
                                 {/* SAĞ: GRUPLAMA VE AKSİYON */}
                                 <div className="space-y-4">
@@ -1040,7 +1209,7 @@
                                             </div>
                                         )}
                                     </div>
-                                    <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-200"><div className="flex justify-between text-xs mb-2"><span className="text-gray-500">Arz (Hekim Gücü):</span><span className="font-bold text-blue-600">{getTotalSupply()}</span></div><div className="flex justify-between text-xs mb-4"><span className="text-gray-500">Talep (Günlük İhtiyaç):</span><span className="font-bold text-purple-600">{getTotalDemand()}</span></div><button onClick={generateSchedule} className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-md rounded-lg shadow hover:opacity-90 transition-transform active:scale-95 flex items-center justify-center gap-2"><Icons.Sparkles /> DAĞITIMI BAŞLAT</button></div>
+                                    <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-200"><div className="flex justify-between text-xs mb-2"><span className="text-gray-500">Arz (Hekim Gücü):</span><span className="font-bold text-blue-600">{getTotalSupply()}</span></div><div className="flex justify-between text-xs mb-4"><span className="text-gray-500">Talep (Günlük İhtiyaç):</span><span className="font-bold text-purple-600">{getTotalDemand()}</span></div><button onClick={confirmGeneration} className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-md rounded-lg shadow hover:opacity-90 transition-transform active:scale-95 flex items-center justify-center gap-2"><Icons.Sparkles /> DAĞITIMI BAŞLAT</button></div>
                                 </div>
                             </div>
                         </div>
@@ -1084,8 +1253,25 @@
                                         {isDrawing ? 'Çekiliyor...' : <><Icons.Dices /> KURA ÇEK</>}
                                     </button>
                                 </div>
-                                {/* SAĞ: SONUÇ ALANI */}
+                                {/* SAĞ: SONUÇ ALANI VE KAYIT */}
                                 <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[500px]">
+                                    <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+                                        {!isRecording ? (
+                                            <button onClick={startRecording} className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full text-xs font-bold transition-all animate-pulse">
+                                                <Icons.Video size={14} /> Kaydı Başlat
+                                            </button>
+                                        ) : (
+                                            <button onClick={stopRecording} className="flex items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-full text-xs font-bold transition-all">
+                                                <Icons.StopCircle size={14} /> Kaydı Bitir
+                                            </button>
+                                        )}
+                                        {/* WHATSAPP PAYLAŞIM BUTONU */}
+                                        {recordedBlob && !isRecording && (
+                                            <button onClick={shareVideoOnWhatsApp} className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full text-xs font-bold transition-all animate-in fade-in zoom-in">
+                                                <Icons.Share size={14} /> WhatsApp ile Paylaş
+                                            </button>
+                                        )}
+                                    </div>
                                     <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none"><div className="absolute top-10 left-10 w-32 h-32 bg-purple-500 rounded-full blur-3xl"></div><div className="absolute bottom-10 right-10 w-40 h-40 bg-pink-500 rounded-full blur-3xl"></div></div>
                                     {isDrawing ? (
                                         <div className="animate-bounce-slow">
@@ -1125,13 +1311,13 @@
 
                     {/* --- 3. SEKME: MAVİ KOD LİSTESİ --- */}
                     {activeTab === 'bluecode' && (
-                        <div className="flex justify-center bg-gray-500 p-8 print:p-0 print:bg-white blue-code-wrapper">
-                            <div ref={blueCodeRef} className="bg-white shadow-lg print:shadow-none blue-code-container" style={{ width: '210mm', minHeight: '297mm', padding: '20mm', margin: '0 auto' }}>
+                        <div className="blue-code-wrapper">
+                            <div ref={blueCodeRef} className="bg-white shadow-lg blue-code-container" style={{ width: '210mm', minHeight: '297mm', padding: '20mm', margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
                                 <div className="flex justify-between items-end border-2 border-black p-2 mb-0">
                                     <div className="font-bold text-lg w-1/4 text-center self-center uppercase">{monthNames[currentDate.getMonth()]}</div>
                                     <div className="font-bold text-xl text-center flex-1 border-l-2 border-black pl-2">AYVACIK DEVLET HASTANESİ {currentDate.getFullYear()} YILI MAVİ KOD LİSTESİ</div>
                                 </div>
-                                <div className="overflow-x-auto">
+                                <div className="overflow-x-auto flex-1">
                                     <table className="w-full border-collapse border-2 border-t-0 border-black text-sm">
                                         <thead><tr className="bg-white"><th className="border border-black p-2 w-32 text-center">TARİH</th><th className="border border-black p-2 w-32 text-center">GÜN</th><th className="border border-black p-2 text-center">NÖBETÇİ (09:00-09:00)</th></tr></thead>
                                         <tbody>
@@ -1145,11 +1331,11 @@
                                         </tbody>
                                     </table>
                                 </div>
-                                <div className="mt-12 flex justify-between px-16 text-center">
+                                <div className="mt-auto pt-8 flex justify-between px-16 text-center">
                                     <div><div className="font-bold mb-8">HAZIRLAYAN</div><div className="mb-1 font-bold">DR. MERT YAYLACI</div><div className="font-medium text-sm">Acil Sorumlu Hekimi</div></div>
                                     <div><div className="font-bold mb-8">ONAYLAYAN</div><div className="mb-1 font-bold">DR. EREN ELİBOL</div><div className="font-medium text-sm">Başhekim</div></div>
                                 </div>
-                                <div className="mt-8 text-center print:hidden flex justify-center gap-2">
+                                <div className="mt-8 text-center print:hidden flex justify-center gap-2 pb-8">
                                     <button onClick={exportToPDF} className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 flex items-center gap-2"><Icons.Printer /> PDF / Yazdır</button>
                                     <div className="relative">
                                         <button onClick={() => setPrintMenuOpen(!printMenuOpen)} className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 flex items-center gap-2"><Icons.Download /> İndir</button>
